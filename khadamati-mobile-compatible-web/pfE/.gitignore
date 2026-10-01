@@ -52,3 +52,8 @@ coverage/
 # Misc
 *.bak
 *.tmp
+
+# build output / env
+spring-backend/target/
+frontend/.env.docker
+*.tsbuildinfo
