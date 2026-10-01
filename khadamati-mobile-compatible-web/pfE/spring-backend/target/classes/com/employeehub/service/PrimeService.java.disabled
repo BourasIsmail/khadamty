@@ -1,0 +1,161 @@
+package com.employeehub.service;
+
+import com.employeehub.model.Prime;
+import com.employeehub.repository.PrimeRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Service pour la gestion des primes
+ */
+@Service
+@Transactional
+public class PrimeService {
+
+    @Autowired
+    private PrimeRepository primeRepository;
+
+    /**
+     * Créer une nouvelle prime
+     */
+    public Prime createPrime(Prime prime) {
+        return primeRepository.save(prime);
+    }
+
+    /**
+     * Récupérer toutes les primes
+     */
+    public List<Prime> getAllPrimes() {
+        return primeRepository.findAll();
+    }
+
+    /**
+     * Récupérer une prime par ID
+     */
+    public Optional<Prime> getPrimeById(String id) {
+        return primeRepository.findById(id);
+    }
+
+    /**
+     * Récupérer les primes d'un employé
+     */
+    public List<Prime> getPrimesByEmployee(String employeeId) {
+        return primeRepository.findByEmployeeId(employeeId);
+    }
+
+    /**
+     * Récupérer les primes par type
+     */
+    public List<Prime> getPrimesByType(Prime.TypePrime type) {
+        return primeRepository.findByType(type);
+    }
+
+    /**
+     * Récupérer les primes d'un employé par type
+     */
+    public List<Prime> getPrimesByEmployeeAndType(String employeeId, Prime.TypePrime type) {
+        return primeRepository.findByEmployeeIdAndType(employeeId, type);
+    }
+
+    /**
+     * Récupérer les primes d'une année
+     */
+    public List<Prime> getPrimesByYear(Integer annee) {
+        return primeRepository.findByAnnee(annee);
+    }
+
+    /**
+     * Récupérer les primes d'un mois spécifique
+     */
+    public List<Prime> getPrimesByMonth(Integer annee, Integer mois) {
+        return primeRepository.findByAnneeAndMois(annee, mois);
+    }
+
+    /**
+     * Récupérer les primes payées
+     */
+    public List<Prime> getPrimesPayees() {
+        return primeRepository.findByEstPayeTrue();
+    }
+
+    /**
+     * Récupérer les primes non payées
+     */
+    public List<Prime> getPrimesNonPayees() {
+        return primeRepository.findByEstPayeFalse();
+    }
+
+    /**
+     * Récupérer les primes d'un employé pour une période
+     */
+    public List<Prime> getPrimesByEmployeeAndPeriode(String employeeId, LocalDate dateDebut, LocalDate dateFin) {
+        return primeRepository.findPrimesByEmployeeAndPeriode(employeeId, dateDebut, dateFin);
+    }
+
+    /**
+     * Calculer le total des primes d'un employé
+     */
+    public Double calculateTotalPrimeByEmployee(String employeeId) {
+        Double total = primeRepository.calculateTotalPrimeByEmployee(employeeId);
+        return total != null ? total : 0.0;
+    }
+
+    /**
+     * Mettre à jour une prime
+     */
+    public Prime updatePrime(String id, Prime primeDetails) {
+        Prime prime = primeRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Prime non trouvée avec l'ID: " + id));
+
+        prime.setEmployee(primeDetails.getEmployee());
+        prime.setType(primeDetails.getType());
+        prime.setLibelle(primeDetails.getLibelle());
+        prime.setAnnee(primeDetails.getAnnee());
+        prime.setMois(primeDetails.getMois());
+        prime.setMontant(primeDetails.getMontant());
+        prime.setDateAttribution(primeDetails.getDateAttribution());
+        prime.setDatePaiement(primeDetails.getDatePaiement());
+        prime.setEstPaye(primeDetails.getEstPaye());
+        prime.setObservations(primeDetails.getObservations());
+
+        return primeRepository.save(prime);
+    }
+
+    /**
+     * Marquer une prime comme payée
+     */
+    public Prime markAsPaid(String id, LocalDate datePaiement) {
+        Prime prime = primeRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Prime non trouvée avec l'ID: " + id));
+        
+        prime.setEstPaye(true);
+        prime.setDatePaiement(datePaiement);
+        return primeRepository.save(prime);
+    }
+
+    /**
+     * Supprimer une prime
+     */
+    public void deletePrime(String id) {
+        primeRepository.deleteById(id);
+    }
+
+    /**
+     * Compter les primes d'un employé
+     */
+    public long countByEmployee(String employeeId) {
+        return primeRepository.countByEmployeeId(employeeId);
+    }
+
+    /**
+     * Compter les primes par type
+     */
+    public long countByType(Prime.TypePrime type) {
+        return primeRepository.countByType(type);
+    }
+}

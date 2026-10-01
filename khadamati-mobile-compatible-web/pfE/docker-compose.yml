@@ -1,0 +1,65 @@
+services:
+
+  # ─────────────────────────────────────
+  # 1. BASE DE DONNÉES MySQL
+  # ─────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: khadamati-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 2003
+      MYSQL_DATABASE: khadamati_db
+    ports:
+      - "3307:3306"  # Port externe 3307 au lieu de 3306
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p2003"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ─────────────────────────────────────
+  # 2. BACKEND Spring Boot
+  # ─────────────────────────────────────
+  backend:
+    build:
+      context: ./spring-backend
+      dockerfile: Dockerfile
+    container_name: khadamati-backend
+    restart: always
+    ports:
+      - "8081:8080"  # Port externe 8081 au lieu de 8080
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/khadamati_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: 2003
+
+  # ─────────────────────────────────────
+  # 3. FRONTEND Next.js
+  # ─────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8081/api
+    container_name: khadamati-frontend
+    restart: always
+    ports:
+      - "3001:3000"  # Port externe 3001 au lieu de 3000
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8081/api
+    depends_on:
+      - backend
+
+# ─────────────────────────────────────
+# Volume pour sauvegarder les données MySQL
+# ─────────────────────────────────────
+volumes:
+  mysql_data:
