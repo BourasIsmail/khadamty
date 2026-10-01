@@ -118,7 +118,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'gender':                _gender,
         'emergencyContactName':  _ecNameCtrl.text.trim(),
         'emergencyContactPhone': _ecPhoneCtrl.text.trim(),
-        'role':                  widget.role,
       });
       if (mounted) setState(() => _step = 4);
     } catch (e) {
@@ -214,7 +213,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  'Votre compte sera créé avec le rôle ${widget.role == 'RH' ? 'Responsable RH' : 'Employé'}.',
+                  'Votre compte sera créé avec le rôle Employé.',
                   style: const TextStyle(fontSize: 12, color: AppColors.primary, fontWeight: FontWeight.w500),
                 ),
               ),

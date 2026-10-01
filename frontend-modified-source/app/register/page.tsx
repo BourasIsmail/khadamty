@@ -151,7 +151,6 @@ const INITIAL: FormData = {
 function RegisterForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const roleParam = searchParams.get('role') || 'EMPLOYEE'
 
   const [step, setStep] = useState<Step>(1)
   const [form, setForm] = useState<FormData>(INITIAL)
@@ -219,7 +218,6 @@ function RegisterForm() {
         gender: form.gender,
         emergencyContactName: form.emergencyContactName,
         emergencyContactPhone: form.emergencyContactPhone,
-        role: roleParam,
       })
       setStep(4)
     } catch (err: unknown) {
@@ -529,7 +527,7 @@ function RegisterForm() {
                   <p className="text-xs text-primary-600 mt-1">
                     Votre compte sera créé avec le rôle{' '}
                     <strong>
-                      {roleParam === 'RH' ? 'Responsable RH' : 'Employé'}
+                      Employé
                     </strong>
                     . Un administrateur pourra modifier votre profil si
                     nécessaire.

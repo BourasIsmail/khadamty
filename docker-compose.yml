@@ -1,0 +1,54 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: khadamati-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      MYSQL_DATABASE: khadamati_db
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./spring-backend
+    container_name: khadamati-backend
+    restart: always
+    ports:
+      - "8081:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required (min 32 chars)}
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+
+  frontend:
+    build:
+      context: ./frontend-modified-source
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8081/api
+    container_name: khadamati-frontend
+    restart: always
+    ports:
+      - "3001:3000"
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:

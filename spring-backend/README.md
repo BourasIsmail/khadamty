@@ -7,9 +7,9 @@ Backend Java Spring Boot pour le système de gestion des employés avec les nouv
 - **Java 17**
 - **Spring Boot 3.2.0**
 - **Spring Security** (JWT Authentication)
-- **Spring Data MongoDB**
+- **Spring Data JPA (Hibernate)**
 - **Maven**
-- **MongoDB**
+- **MySQL 8**
 
 ## 👥 Nouveaux Rôles
 1. **ADMIN** - Administrateur système (rouge)

@@ -8,8 +8,8 @@ import com.employeehub.model.Employee;
 import com.employeehub.model.User;
 import com.employeehub.repository.EmployeeRepository;
 import com.employeehub.repository.UserRepository;
-import com.employeehub.service.OtpService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @RestController
 @RequestMapping("/auth")
@@ -27,36 +28,35 @@ public class AuthController {
     private final EmployeeRepository employeeRepository;
     private final PasswordEncoder    passwordEncoder;
     private final JwtUtil            jwtUtil;
-    private final OtpService         otpService;
 
     public AuthController(UserRepository userRepository, EmployeeRepository employeeRepository,
-                          PasswordEncoder passwordEncoder, JwtUtil jwtUtil, OtpService otpService) {
+                          PasswordEncoder passwordEncoder, JwtUtil jwtUtil) {
         this.userRepository     = userRepository;
         this.employeeRepository = employeeRepository;
         this.passwordEncoder    = passwordEncoder;
         this.jwtUtil            = jwtUtil;
-        this.otpService         = otpService;
     }
 
-    // ── Étape 1 : email + mot de passe → envoyer OTP seulement si email non vérifié ─────────────────────────
+    // ── Connexion : email + mot de passe → JWT ───────────────────────────────
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
         try {
+            String key = req.getEmail() == null ? "" : req.getEmail().toLowerCase();
+            if (isLockedOut(key))
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("message", "Trop de tentatives. Réessayez dans quelques minutes."));
+
             Optional<User> opt = userRepository.findByEmail(req.getEmail());
-            if (opt.isEmpty())
+            if (opt.isEmpty() || !passwordEncoder.matches(req.getPassword(), opt.get().getPassword())) {
+                recordFailure(key);
                 return ResponseEntity.badRequest().body(Map.of("message", "Email ou mot de passe incorrect"));
+            }
 
             User user = opt.get();
             if (!user.isActive())
                 return ResponseEntity.badRequest().body(Map.of("message", "Compte désactivé"));
-            
-            boolean passwordMatch = passwordEncoder.matches(req.getPassword(), user.getPassword());
-            System.out.println("🔐 Login attempt: " + req.getEmail() + " | Role: " + user.getRole().name() + " | PasswordMatch: " + passwordMatch);
-            
-            if (!passwordMatch)
-                return ResponseEntity.badRequest().body(Map.of("message", "Email ou mot de passe incorrect"));
 
-            // ✅ CONNEXION DIRECTE SANS OTP - OTP désactivé
+            failedLogins.remove(key);
             String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name(), String.valueOf(user.getId()));
             
             return ResponseEntity.ok(new LoginResponse(
@@ -66,96 +66,6 @@ public class AuthController {
             ));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(Map.of("message", e.getMessage()));
-        }
-    }
-
-    // ── Étape 2 : vérifier OTP → retourner JWT et marquer email comme vérifié ───────────────────────────────
-    @PostMapping("/verify-otp")
-    public ResponseEntity<?> verifyOtp(@RequestBody Map<String, String> body) {
-        try {
-            String email = body.get("email");
-            String code  = body.get("code");
-            if (email == null || code == null)
-                return ResponseEntity.badRequest().body(Map.of("message", "Email et code requis"));
-
-            if (!otpService.verifyOtp(email, code))
-                return ResponseEntity.badRequest().body(Map.of("message", "Code incorrect ou expiré"));
-
-            User user = userRepository.findByEmail(email).orElseThrow();
-            
-            // Marquer l'email comme vérifié (première connexion réussie)
-            if (!user.isEmailVerified()) {
-                user.setEmailVerified(true);
-                userRepository.save(user);
-                System.out.println("✅ Email vérifié pour: " + email + " - Plus besoin d'OTP pour les prochaines connexions");
-            }
-            
-            String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name(), String.valueOf(user.getId()));
-
-            return ResponseEntity.ok(new LoginResponse(
-                token, String.valueOf(user.getId()), user.getEmail(),
-                user.getFirstName(), user.getLastName(), user.getRole().name(),
-                user.isPasswordChangeRequired()
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("message", e.getMessage()));
-        }
-    }
-
-    // ── Renvoyer OTP ──────────────────────────────────────────────────────────
-    @PostMapping("/resend-otp")
-    public ResponseEntity<?> resendOtp(@RequestBody Map<String, String> body) {
-        try {
-            String email = body.get("email");
-            User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new Exception("Email non trouvé"));
-            otpService.generateAndSendOtp(user.getEmail(), user.getFirstName());
-            return ResponseEntity.ok(Map.of("message", "Nouveau code envoyé"));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
-    }
-
-    // ── Debug : vérifier si un compte existe ─────────────────────────────────
-    @GetMapping("/debug/check/{email}")
-    public ResponseEntity<?> debugCheck(@PathVariable String email) {
-        try {
-            Optional<User> userOpt = userRepository.findByEmail(email);
-            if (userOpt.isEmpty()) {
-                return ResponseEntity.ok(Map.of("exists", false, "message", "Aucun compte trouvé pour: " + email));
-            }
-            User user = userOpt.get();
-            return ResponseEntity.ok(Map.of(
-                "exists", true,
-                "email", user.getEmail(),
-                "role", user.getRole().name(),
-                "isActive", user.isActive(),
-                "emailVerified", user.isEmailVerified(),
-                "firstName", user.getFirstName(),
-                "lastName", user.getLastName()
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
-        }
-    }
-
-    // ── Debug : Réinitialiser la vérification email (pour tests) ─────────────────────────────────
-    @PostMapping("/debug/reset-verification/{email}")
-    public ResponseEntity<?> resetEmailVerification(@PathVariable String email) {
-        try {
-            Optional<User> userOpt = userRepository.findByEmail(email);
-            if (userOpt.isEmpty()) {
-                return ResponseEntity.badRequest().body(Map.of("message", "Utilisateur non trouvé"));
-            }
-            User user = userOpt.get();
-            user.setEmailVerified(false);
-            userRepository.save(user);
-            return ResponseEntity.ok(Map.of(
-                "message", "Vérification email réinitialisée pour: " + email,
-                "emailVerified", false
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
     }
 
@@ -179,10 +89,9 @@ public class AuthController {
             user.setPassword(passwordEncoder.encode(req.getPassword()));
             user.setFirstName(req.getFirstName());
             user.setLastName(req.getLastName());
-            // Rôle : RH si spécifié, sinon EMPLOYEE par défaut
-            User.Role role = User.Role.EMPLOYEE;
-            if ("RH".equalsIgnoreCase(req.getRole())) role = User.Role.RH;
-            user.setRole(role);
+            // L'inscription publique crée toujours un EMPLOYEE.
+            // Les comptes RH/ADMIN sont attribués par un administrateur (/admin/users).
+            user.setRole(User.Role.EMPLOYEE);
             user.setActive(true);
             userRepository.save(user);
 
@@ -281,6 +190,26 @@ public class AuthController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", "Token invalide"));
         }
+    }
+
+    // ── Limitation des tentatives de connexion (en mémoire) ───────────────────
+    private static final int MAX_FAILED_LOGINS = 5;
+    private static final long LOCKOUT_MILLIS = 15 * 60 * 1000L;
+    private final Map<String, long[]> failedLogins = new ConcurrentHashMap<>(); // {count, firstFailureAt}
+
+    private boolean isLockedOut(String key) {
+        long[] e = failedLogins.get(key);
+        if (e == null) return false;
+        if (System.currentTimeMillis() - e[1] > LOCKOUT_MILLIS) {
+            failedLogins.remove(key);
+            return false;
+        }
+        return e[0] >= MAX_FAILED_LOGINS;
+    }
+
+    private void recordFailure(String key) {
+        failedLogins.merge(key, new long[]{1, System.currentTimeMillis()},
+            (old, fresh) -> new long[]{old[0] + 1, old[1]});
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

@@ -28,7 +28,7 @@ const navItems = [
   { name: 'Structures',       href: '/dashboard/structures',        icon: BriefcaseIcon,     activeIcon: BriefcaseSolid,  roles: ['ADMIN','RH'] },
   { name: 'Salaires',         href: '/dashboard/salaires',          icon: BanknotesIcon,     activeIcon: BanknotesIcon,   roles: ['ADMIN','RH','EMPLOYEE'] },
   { name: 'Ordres Mission',   href: '/dashboard/ordres-mission',    icon: DocumentTextIcon,  activeIcon: DocumentSolid,   roles: ['ADMIN','RH','EMPLOYEE'] },
-  { name: 'Demandes',         href: '/dashboard/demandes',          icon: CalendarDaysIcon,  activeIcon: CalendarSolid,   roles: ['EMPLOYEE'] },
+  { name: 'Demandes',         href: '/dashboard/demandes',          icon: CalendarDaysIcon,  activeIcon: CalendarSolid,   roles: ['ADMIN','RH'] },
   { name: 'Documents',        href: '/dashboard/documents',         icon: DocumentTextIcon,  activeIcon: DocumentSolid,   roles: ['ADMIN','RH','EMPLOYEE'] },
   { name: 'Annonces',         href: '/dashboard/annonces',          icon: BellIcon,          activeIcon: BellIcon,        roles: ['ADMIN','RH','EMPLOYEE'] },
   { name: 'Mes congés',       href: '/dashboard/leave-balance',     icon: CalendarDaysIcon,  activeIcon: CalendarSolid,   roles: ['EMPLOYEE'] },
