@@ -43,8 +43,13 @@ docker compose -f docker-compose.prod.yml exec -T mysql sh -c 'mysqldump -uroot 
 Schedule this with cron and copy the dumps off the VM.
 
 ## Mobile app (Flutter)
-Build with the API URL: `flutter build apk --dart-define=API_BASE_URL=http://172.16.20.69/api`.
-Android blocks plain HTTP by default for release builds — use HTTPS (below) for real distribution.
+The app reads its API address at build time. Build from `khadamati-mobile-compatible-web/` on a machine with the Flutter SDK (Android SDK for APKs, Xcode for iOS):
+```bash
+flutter pub get
+flutter build apk --release --dart-define=API_BASE_URL=http://172.16.20.69/api   # Android → build/app/outputs/flutter-apk/app-release.apk
+flutter build web --release --dart-define=API_BASE_URL=http://172.16.20.69/api   # web → build/web
+```
+The manifest allows plain HTTP (`usesCleartextTraffic`, iOS App Transport Security exception) because the server has no HTTPS yet. The phone must be on the same network as the VM. Once HTTPS is set up, switch the URL to `https://…/api` and remove those two exceptions.
 
 ## HTTPS
 `172.16.20.69` is a private address, so no public certificate can be issued for it. For HTTPS, point a domain at the server, replace `:80` with the hostname in `deploy/Caddyfile`, and redeploy; Caddy fetches the certificate automatically (ports 80/443 must be reachable from the internet).
