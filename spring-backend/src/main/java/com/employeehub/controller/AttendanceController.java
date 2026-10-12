@@ -1,5 +1,6 @@
 package com.employeehub.controller;
 
+import com.employeehub.config.CurrentUser;
 import com.employeehub.config.JwtUtil;
 import com.employeehub.model.Attendance;
 import com.employeehub.model.Employee;
@@ -21,13 +22,16 @@ public class AttendanceController {
     private final AttendanceRepository attendanceRepository;
     private final EmployeeRepository employeeRepository;
     private final JwtUtil jwtUtil;
+    private final CurrentUser currentUser;
 
     public AttendanceController(AttendanceRepository attendanceRepository,
                                 EmployeeRepository employeeRepository,
-                                JwtUtil jwtUtil) {
+                                JwtUtil jwtUtil,
+                                CurrentUser currentUser) {
         this.attendanceRepository = attendanceRepository;
         this.employeeRepository = employeeRepository;
         this.jwtUtil = jwtUtil;
+        this.currentUser = currentUser;
     }
 
     // Liste des présences avec filtres
@@ -39,6 +43,12 @@ public class AttendanceController {
             @RequestParam(required = false) String status,
             @RequestHeader(value = "Authorization", required = false) String token) {
         try {
+            if (!currentUser.isStaff()) {
+                // Un employé ne voit que ses propres pointages : le filtre employee_id est imposé
+                var self = currentUser.employee();
+                if (self.isEmpty()) return ResponseEntity.ok(Map.of("records", List.of(), "total", 0));
+                employee_id = self.get().getEmployeeId();
+            }
             List<Attendance> records;
 
             if (employee_id != null && !employee_id.isBlank()) {
@@ -86,7 +96,7 @@ public class AttendanceController {
             @RequestBody Map<String, String> body,
             @RequestHeader("Authorization") String token) {
         try {
-            String employeeId = body.get("employee_id");
+            String employeeId = currentUser.isStaff() ? body.get("employee_id") : null; // un employé pointe uniquement pour lui-même
             if (employeeId == null || employeeId.isBlank()) {
                 // Utiliser l'email du token pour trouver l'employé
                 String email = jwtUtil.extractUsername(token.substring(7));
@@ -144,7 +154,7 @@ public class AttendanceController {
             @RequestBody Map<String, String> body,
             @RequestHeader("Authorization") String token) {
         try {
-            String employeeId = body.get("employee_id");
+            String employeeId = currentUser.isStaff() ? body.get("employee_id") : null; // un employé pointe uniquement pour lui-même
             if (employeeId == null || employeeId.isBlank()) {
                 String email = jwtUtil.extractUsername(token.substring(7));
                 Optional<Employee> empOpt = employeeRepository.findByEmail(email);
@@ -287,6 +297,8 @@ public class AttendanceController {
             @RequestParam(defaultValue = "0") int month,
             @RequestParam(defaultValue = "0") int year) {
         try {
+            if (!currentUser.isStaff() && !currentUser.employee().map(e -> employeeId.equals(e.getEmployeeId())).orElse(false))
+                return ResponseEntity.status(403).body(Map.of("message", "Accès refusé"));
             LocalDate now = LocalDate.now();
             int targetMonth = month > 0 ? month : now.getMonthValue();
             int targetYear = year > 0 ? year : now.getYear();

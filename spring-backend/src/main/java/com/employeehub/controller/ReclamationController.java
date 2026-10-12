@@ -1,8 +1,10 @@
 package com.employeehub.controller;
 
+import com.employeehub.config.CurrentUser;
 import com.employeehub.model.Reclamation;
 import com.employeehub.service.ReclamationService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,11 +19,23 @@ public class ReclamationController {
     @Autowired
     private ReclamationService reclamationService;
 
+    @Autowired
+    private CurrentUser currentUser;
+
+    private static final ResponseEntity<Map<String, String>> FORBIDDEN =
+        ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", "Accès refusé"));
+
     @GetMapping
     public ResponseEntity<?> getAll(@RequestParam(required = false) Long employeeId,
                                     @RequestParam(required = false) String statut,
                                     @RequestParam(required = false) Long traiteParId) {
         try {
+            if (!currentUser.isStaff()) {
+                // Un employé ne voit que ses propres réclamations (les filtres sont ignorés)
+                return ResponseEntity.ok(currentUser.employee()
+                    .map(e -> reclamationService.getReclamationsByEmployeeOrderByDate(e.getId()))
+                    .orElse(java.util.List.of()));
+            }
             if (employeeId != null && statut != null) {
                 // Not supported in simplified version - just return by employee
                 return ResponseEntity.ok(reclamationService.getReclamationsByEmployeeOrderByDate(employeeId));
@@ -47,7 +61,9 @@ public class ReclamationController {
     public ResponseEntity<?> getById(@PathVariable String id) {
         try {
             return reclamationService.getReclamationById(id)
-                .map(ResponseEntity::ok)
+                .<ResponseEntity<?>>map(r -> currentUser.isStaff()
+                    || (r.getEmployee() != null && currentUser.isSelf(r.getEmployee().getId()))
+                        ? ResponseEntity.ok(r) : FORBIDDEN)
                 .orElse(ResponseEntity.notFound().build());
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
@@ -57,6 +73,15 @@ public class ReclamationController {
     @PostMapping
     public ResponseEntity<?> create(@RequestBody Reclamation reclamation) {
         try {
+            if (!currentUser.isStaff()) {
+                // Un employé dépose une réclamation en son nom ; statut et réponse sont gérés par le RH
+                var self = currentUser.employee();
+                if (self.isEmpty()) return FORBIDDEN;
+                reclamation.setEmployee(self.get());
+                reclamation.setStatut(Reclamation.StatutReclamation.nouvelle);
+                reclamation.setReponse(null);
+                reclamation.setTraitePar(null);
+            }
             Reclamation saved = reclamationService.createReclamation(reclamation);
             return ResponseEntity.ok(Map.of("message", "Réclamation créée avec succès", "reclamation", saved));
         } catch (Exception e) {
