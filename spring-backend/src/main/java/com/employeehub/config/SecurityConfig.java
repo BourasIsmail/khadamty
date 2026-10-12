@@ -3,6 +3,7 @@ package com.employeehub.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -42,19 +43,34 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/auth/login", "/auth/register").permitAll()
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
                 .requestMatchers("/rh/**").hasAnyRole("ADMIN", "RH")
-                .requestMatchers("/employees/**").hasAnyRole("ADMIN", "RH", "EMPLOYEE")
-                .requestMatchers("/attendance/**").hasAnyRole("ADMIN", "RH", "EMPLOYEE")
-                // Sections accessibles à tous les rôles authentifiés
-                .requestMatchers("/annonces/**").hasAnyRole("ADMIN", "RH", "EMPLOYEE")
-                .requestMatchers("/documents/**").hasAnyRole("ADMIN", "RH", "EMPLOYEE")
-                // Sections employé : demandes et ordres de mission
-                .requestMatchers("/demandes/**").hasAnyRole("ADMIN", "RH", "EMPLOYEE")
-                .requestMatchers("/ordres-mission/**").hasAnyRole("ADMIN", "RH", "EMPLOYEE")
+                // Libre-service employé : uniquement les données de l'utilisateur connecté
+                .requestMatchers("/employees/profile/**", "/employees/profile", "/employees/leave-balance",
+                    "/employees/leave-request", "/employees/leave-requests",
+                    "/employees/document-request", "/employees/document-requests",
+                    "/employees/attendances", "/employees/leave-availability",
+                    "/employees/pay-slips", "/employees/pay-slips/**")
+                    .hasAnyRole("ADMIN", "RH", "EMPLOYEE")
+                // Gestion des employés (liste, création, modification, suppression, salaires) : RH/Admin
+                .requestMatchers("/employees/**").hasAnyRole("ADMIN", "RH")
+                // Pointage : chacun peut pointer et consulter ; la saisie/modification manuelle est réservée à RH/Admin
+                .requestMatchers(HttpMethod.GET, "/attendance/**").hasAnyRole("ADMIN", "RH", "EMPLOYEE")
+                .requestMatchers(HttpMethod.POST, "/attendance/check-in", "/attendance/check-out").hasAnyRole("ADMIN", "RH", "EMPLOYEE")
+                .requestMatchers("/attendance/**").hasAnyRole("ADMIN", "RH")
+                // Annonces et documents : lecture pour tous, écriture RH/Admin
+                .requestMatchers(HttpMethod.GET, "/annonces/**", "/documents/**").hasAnyRole("ADMIN", "RH", "EMPLOYEE")
+                .requestMatchers(HttpMethod.PATCH, "/documents/*/download").hasAnyRole("ADMIN", "RH", "EMPLOYEE")
+                .requestMatchers("/annonces/**", "/documents/**").hasAnyRole("ADMIN", "RH")
+                // Demandes : gestion RH/Admin
+                .requestMatchers("/demandes/**").hasAnyRole("ADMIN", "RH")
+                // Ordres de mission : consultation et création pour tous, validation/modification/suppression RH/Admin
+                .requestMatchers(HttpMethod.GET, "/ordres-mission/**").hasAnyRole("ADMIN", "RH", "EMPLOYEE")
+                .requestMatchers(HttpMethod.POST, "/ordres-mission").hasAnyRole("ADMIN", "RH", "EMPLOYEE")
+                .requestMatchers("/ordres-mission/**").hasAnyRole("ADMIN", "RH")
                 // Autres ressources RH/Admin
                 .requestMatchers("/structures/**").hasAnyRole("ADMIN", "RH")
                 .requestMatchers("/salaires/**").hasAnyRole("ADMIN", "RH")
@@ -65,7 +81,9 @@ public class SecurityConfig {
                 .requestMatchers("/credits/**").hasAnyRole("ADMIN", "RH")
                 .requestMatchers("/notes-annuelles/**").hasAnyRole("ADMIN", "RH")
                 .requestMatchers("/examens/**").hasAnyRole("ADMIN", "RH")
-                .requestMatchers("/reclamations/**").hasAnyRole("ADMIN", "RH", "EMPLOYEE")
+                .requestMatchers(HttpMethod.GET, "/reclamations/**").hasAnyRole("ADMIN", "RH", "EMPLOYEE")
+                .requestMatchers(HttpMethod.POST, "/reclamations").hasAnyRole("ADMIN", "RH", "EMPLOYEE")
+                .requestMatchers("/reclamations/**").hasAnyRole("ADMIN", "RH")
                 .anyRequest().authenticated()
             )
             .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))

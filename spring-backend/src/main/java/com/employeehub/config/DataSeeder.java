@@ -4,6 +4,8 @@ import com.employeehub.model.*;
 import com.employeehub.repository.*;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -14,7 +16,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
+/**
+ * Données de démonstration et référentiel organisationnel.
+ * Désactivé par défaut : activer avec SEED_DEMO_DATA=true (développement uniquement).
+ */
 @Component
+@ConditionalOnProperty(name = "app.seed.demo-data", havingValue = "true")
 public class DataSeeder implements CommandLineRunner {
 
     private final UserRepository userRepository;
@@ -31,6 +38,9 @@ public class DataSeeder implements CommandLineRunner {
     private final CoordinationRegionRepository coordinationRegionRepository;
     private final DelegationProvinceRepository delegationProvinceRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Value("${app.seed.admin-password:}")
+    private String adminPassword;
 
     public DataSeeder(UserRepository userRepository, EmployeeRepository employeeRepository,
                      AttendanceRepository attendanceRepository, LeaveRequestRepository leaveRequestRepository,
@@ -79,10 +89,17 @@ public class DataSeeder implements CommandLineRunner {
         System.out.println("✅ Données Khadamati prêtes.");
     }
 
+    private String resolveAdminPassword() {
+        if (adminPassword != null && !adminPassword.isBlank()) return adminPassword;
+        String generated = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+        System.out.println("⚠️ SEED_ADMIN_PASSWORD non défini — mot de passe admin généré (à noter, affiché une seule fois) : " + generated);
+        return generated;
+    }
+
     private void seedUsers() {
         List<User> users = Arrays.asList(
             // ── Compte ADMIN fixe avec vrai email ──
-            new User("ismailelrhazoui21@gmail.com", passwordEncoder.encode("smail1234"), "Ismail", "Elrhazoui", User.Role.ADMIN),
+            new User("ismailelrhazoui21@gmail.com", passwordEncoder.encode(resolveAdminPassword()), "Ismail", "Elrhazoui", User.Role.ADMIN),
             // ── Comptes RH et EMPLOYEE avec vrais emails ──
             new User("ismailelrhazoui2003@gmail.com", passwordEncoder.encode("password123"), "Marie", "Dupont", User.Role.RH),
             new User("employee@demo.com", passwordEncoder.encode("password123"), "Jean", "Martin", User.Role.EMPLOYEE),

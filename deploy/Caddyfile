@@ -1,0 +1,17 @@
+# Single entry point on port 80. For a public domain, replace ":80" with
+# your hostname (e.g. rh.example.ma) and Caddy will obtain HTTPS automatically.
+:80 {
+	encode gzip
+
+	# API docs are not exposed in production
+	@docs path /api/swagger-ui* /api/v3/api-docs*
+	respond @docs 404
+
+	handle /api/* {
+		reverse_proxy backend:8080
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

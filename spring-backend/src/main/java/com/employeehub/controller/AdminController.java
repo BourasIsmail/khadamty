@@ -200,21 +200,4 @@ public class AdminController {
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         }
     }
-
-    // Lister tous les utilisateurs (debug)
-    @GetMapping("/debug/users")
-    public ResponseEntity<?> debugUsers() {
-        try {
-            return ResponseEntity.ok(userRepository.findAll().stream().map(u -> Map.of(
-                "id", u.getId(),
-                "email", u.getEmail(),
-                "role", u.getRole().name(),
-                "isActive", u.isActive(),
-                "firstName", u.getFirstName(),
-                "lastName", u.getLastName()
-            )).toList());
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error: " + e.getMessage());
-        }
-    }
 }

@@ -7,8 +7,8 @@ spring:
   datasource:
     # Dans Docker, MySQL s'appelle "mysql" (nom du service dans docker-compose)
     url: jdbc:mysql://mysql:3306/khadamati_db?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: root
-    password: 2003
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -23,10 +23,10 @@ spring:
     name: employee-management
 
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ismailelrhazoui2003@gmail.com
-    password: qlxiexgjbwibvnyd
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
@@ -34,8 +34,13 @@ spring:
           starttls:
             enable: true
 
+app:
+  seed:
+    demo-data: ${SEED_DEMO_DATA:false}
+    admin-password: ${SEED_ADMIN_PASSWORD:}
+
 jwt:
-  secret: mySecretKey123456789012345678901234567890
+  secret: ${JWT_SECRET}
   expiration: 86400000
 
 cors:

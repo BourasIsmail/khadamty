@@ -5,8 +5,8 @@ import com.employeehub.dto.DocumentRequestDto;
 import com.employeehub.dto.LeaveRequestDto;
 import com.employeehub.model.*;
 import com.employeehub.repository.*;
-import com.employeehub.service.OtpService;
 import com.employeehub.service.PasswordGeneratorService;
+import com.employeehub.service.MailService;
 import com.employeehub.service.PdfGenerationService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -38,9 +38,9 @@ public class EmployeeController {
     private final StructureRepository structureRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
-    private final OtpService otpService;
     private final PasswordGeneratorService passwordGeneratorService;
     private final PdfGenerationService pdfGenerationService;
+    private final MailService mailService;
 
     public EmployeeController(EmployeeRepository employeeRepository, UserRepository userRepository,
                              LeaveRequestRepository leaveRequestRepository, 
@@ -48,9 +48,10 @@ public class EmployeeController {
                              AttendanceRepository attendanceRepository,
                              SalaireRepository salaireRepository,
                              StructureRepository structureRepository,
-                             PasswordEncoder passwordEncoder, JwtUtil jwtUtil, OtpService otpService,
+                             PasswordEncoder passwordEncoder, JwtUtil jwtUtil,
                              PasswordGeneratorService passwordGeneratorService,
-                             PdfGenerationService pdfGenerationService) {
+                             PdfGenerationService pdfGenerationService,
+                             MailService mailService) {
         this.employeeRepository = employeeRepository;
         this.userRepository = userRepository;
         this.leaveRequestRepository = leaveRequestRepository;
@@ -60,9 +61,9 @@ public class EmployeeController {
         this.structureRepository = structureRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
-        this.otpService = otpService;
         this.passwordGeneratorService = passwordGeneratorService;
         this.pdfGenerationService = pdfGenerationService;
+        this.mailService = mailService;
     }
 
     // ==================== ENDPOINTS EMPLOYEE (rôle EMPLOYEE) ====================
@@ -513,22 +514,8 @@ public class EmployeeController {
             Employee saved = employeeRepository.save(employee);
 
             // Envoyer email de bienvenue avec les credentials
-            try {
-                otpService.sendWelcomeEmail(email, employee.getFirstName(), employee.getLastName(),
-                    employeeId, password, accountRole.name());
-            } catch (Exception mailEx) {
-                System.err.println("❌ Email de bienvenue non envoyé: " + mailEx.getMessage());
-                // Afficher dans les logs en cas d'échec d'envoi
-                System.out.println("═══════════════════════════════════════════════");
-                System.out.println("📧 NOUVEAU COMPTE CRÉÉ");
-                System.out.println("═══════════════════════════════════════════════");
-                System.out.println("Nom: " + employee.getFirstName() + " " + employee.getLastName());
-                System.out.println("Email: " + email);
-                System.out.println("ID Employé: " + employeeId);
-                System.out.println("Mot de passe: " + password);
-                System.out.println("Rôle: " + (accountRole == User.Role.RH ? "RH (Ressources Humaines)" : "Employé"));
-                System.out.println("═══════════════════════════════════════════════");
-            }
+            mailService.sendWelcomeEmail(email, employee.getFirstName(), employee.getLastName(),
+                employeeId, password, accountRole.name());
 
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Employé créé avec succès. Un email de bienvenue a été envoyé.");

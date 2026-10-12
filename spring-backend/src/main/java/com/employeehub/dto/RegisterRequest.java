@@ -37,7 +37,6 @@ public class RegisterRequest {
     private String gender; // M / F
     private String emergencyContactName;
     private String emergencyContactPhone;
-    private String role; // EMPLOYEE ou RH
 
     // Getters & Setters
     public String getFirstName() { return firstName; }
@@ -85,6 +84,4 @@ public class RegisterRequest {
     public String getEmergencyContactPhone() { return emergencyContactPhone; }
     public void setEmergencyContactPhone(String emergencyContactPhone) { this.emergencyContactPhone = emergencyContactPhone; }
 
-    public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
 }

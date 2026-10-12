@@ -7,3 +7,6 @@ Thumbs.db
 .vscode/
 *.iml
 *.swp
+
+# secrets
+.env
