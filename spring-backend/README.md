@@ -28,7 +28,8 @@ Backend Java Spring Boot pour le système de gestion des employés avec les nouv
 ### Prérequis
 - Java 17+
 - Maven 3.6+
-- MongoDB (déjà installé)
+- MySQL 8 (base `khadamati_db`, créée automatiquement)
+- Variables d'environnement : `DB_PASSWORD`, `JWT_SECRET` (voir `.env.example` à la racine)
 
 ### 1. Compilation
 ```bash
@@ -43,12 +44,8 @@ mvn spring-boot:run
 
 Le serveur démarre sur **http://localhost:8080/api**
 
-## 🔐 Comptes de Test
-| Email | Mot de passe | Rôle |
-|-------|-------------|------|
-| admin@demo.com | password123 | ADMIN |
-| rh@demo.com | password123 | RH |
-| employee@demo.com | password123 | EMPLOYEE |
+## 🔐 Comptes
+Aucun compte n'est créé par défaut. Avec `SEED_DEMO_DATA=true` (développement uniquement) le seed crée un compte ADMIN (mot de passe = `SEED_ADMIN_PASSWORD`, ou généré et affiché une fois dans les logs) ainsi que des comptes de démo. Les comptes RH/ADMIN sont attribués par un administrateur ; l'inscription publique crée toujours un EMPLOYEE.
 
 ## 📡 API Endpoints
 
@@ -124,9 +121,16 @@ server:
     context-path: /api
 
 spring:
-  data:
-    mongodb:
-      uri: mongodb://localhost:27017/employee_management
+  datasource:
+    url: jdbc:mysql://localhost:3306/khadamati_db?createDatabaseIfNotExist=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: update
+
+jwt:
+  secret: ${JWT_SECRET}
 ```
 
 ## 🎯 Prochaines Étapes
@@ -137,12 +141,12 @@ spring:
 
 ## 🐛 Debug
 - Logs disponibles dans la console
-- MongoDB sur port 27017
+- MySQL sur port 3306
 - API sur http://localhost:8080/api
 - CORS configuré pour http://localhost:3000
 
 ## 📝 Notes
-- Le seed automatique crée des données de test au démarrage
+- Le seed (données de démo) ne s'exécute que si `SEED_DEMO_DATA=true` ; le mot de passe admin vient de `SEED_ADMIN_PASSWORD`
 - JWT tokens valides 24h
 - Mots de passe hashés avec BCrypt
-- Base de données MongoDB: `employee_management`
+- Base de données MySQL: `khadamati_db`
