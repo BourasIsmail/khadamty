@@ -159,6 +159,10 @@ class ApiClient {
     return this.request<any>(`/employees/${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
+  async getEmployeeSalary(id: string) {
+    return this.request<any>(`/employees/${id}/salary`);
+  }
+
   async deleteEmployee(id: string) {
     return this.request<any>(`/employees/${id}`, { method: 'DELETE' });
   }
