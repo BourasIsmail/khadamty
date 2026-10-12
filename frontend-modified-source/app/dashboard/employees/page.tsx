@@ -81,7 +81,7 @@ export default function EmployeesPage() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Employés</h1>
           <p className="text-gray-500 mt-1">{total} employé{total !== 1 ? 's' : ''} au total</p>
@@ -99,13 +99,18 @@ export default function EmployeesPage() {
 
       {!loading && employees.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {(Object.entries(structureGroups) as [string, number][]).slice(0, 8).map(([label, count]) => (
-            <div key={label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Equipe</p>
-              <p className="text-sm font-semibold text-gray-900 mt-1 line-clamp-2">{label}</p>
-              <p className="text-2xl font-bold text-blue-600 mt-3">{count}</p>
-            </div>
-          ))}
+          {(Object.entries(structureGroups) as [string, number][])
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 4)
+            .map(([label, count]) => (
+              <div key={label} title={label} className="min-w-0 bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Structure</p>
+                  <p className="text-sm font-semibold text-gray-900 mt-1 truncate">{label.split(' / ').pop()}</p>
+                </div>
+                <p className="text-2xl font-bold text-blue-600">{count}</p>
+              </div>
+            ))}
         </div>
       )}
 
@@ -185,8 +190,8 @@ export default function EmployeesPage() {
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700">{emp.position}</td>
                     <td className="px-6 py-4">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
-                        {structureLabel(emp)}
+                      <span title={structureLabel(emp)} className="inline-flex items-center max-w-[16rem] truncate px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                        {structureLabel(emp).split(' / ').pop()}
                       </span>
                     </td>
                     <td className="px-6 py-4">{statusBadge(emp.status)}</td>

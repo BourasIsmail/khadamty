@@ -549,11 +549,32 @@ public class EmployeeController {
             if (updates.containsKey("last_name")) {
                 employee.setLastName((String) updates.get("last_name"));
             }
+            String oldEmail = employee.getEmail();
             if (updates.containsKey("email")) {
-                employee.setEmail((String) updates.get("email"));
+                String newEmail = ((String) updates.get("email")).trim();
+                if (newEmail.isEmpty()) {
+                    return ResponseEntity.badRequest().body("Error: L'email est obligatoire");
+                }
+                if (!newEmail.equalsIgnoreCase(oldEmail)
+                        && (employeeRepository.existsByEmail(newEmail) || userRepository.findByEmail(newEmail).isPresent())) {
+                    return ResponseEntity.badRequest().body("Error: Cet email est déjà utilisé");
+                }
+                employee.setEmail(newEmail);
             }
             if (updates.containsKey("phone")) {
                 employee.setPhone((String) updates.get("phone"));
+            }
+            if (updates.containsKey("street")) {
+                employee.setAddress(cleanOptionalText((String) updates.get("street")));
+            }
+            if (updates.containsKey("ec_name")) {
+                employee.setEmergencyContact(cleanOptionalText((String) updates.get("ec_name")));
+            }
+            if (updates.containsKey("ec_phone")) {
+                employee.setEmergencyPhone(cleanOptionalText((String) updates.get("ec_phone")));
+            }
+            if (updates.get("hire_date") instanceof String hd && !hd.isBlank()) {
+                employee.setHireDate(LocalDate.parse(hd.length() > 10 ? hd.substring(0, 10) : hd));
             }
             if (updates.containsKey("position")) {
                 employee.setPosition((String) updates.get("position"));
@@ -565,8 +586,8 @@ public class EmployeeController {
                 employee.setStructure(structure);
                 employee.setDepartment(structure.getNomFr());
             });
-            if (updates.containsKey("salary")) {
-                employee.setSalary(((Number) updates.get("salary")).doubleValue());
+            if (updates.get("salary") instanceof Number sal) {
+                employee.setSalary(sal.doubleValue());
             }
             if (updates.containsKey("status")) {
                 employee.setStatus((String) updates.get("status"));
@@ -574,6 +595,16 @@ public class EmployeeController {
             
             employee.setUpdatedAt(LocalDateTime.now());
             Employee saved = employeeRepository.save(employee);
+
+            // Garder le compte de connexion synchronisé (email = identifiant de connexion, nom affiché)
+            if (oldEmail != null) {
+                userRepository.findByEmail(oldEmail).ifPresent(user -> {
+                    user.setEmail(saved.getEmail());
+                    user.setFirstName(saved.getFirstName());
+                    user.setLastName(saved.getLastName());
+                    userRepository.save(user);
+                });
+            }
             
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Employé mis à jour avec succès");
