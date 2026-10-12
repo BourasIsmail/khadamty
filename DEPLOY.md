@@ -1,13 +1,13 @@
 # Deploying Khadamati on a VM (Docker)
 
-Target: a Linux VM (e.g. `172.16.20.69`) reachable by your users. Only one port (default 8088) is exposed; MySQL and the API stay on the internal Docker network.
+Target: a Linux VM (e.g. `172.16.20.69`) reachable by your users. Only one port (default 80) is exposed; MySQL and the API stay on the internal Docker network.
 
 ## 1. Prepare the VM (once)
 ```bash
 # Ubuntu/Debian
 curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER && newgrp docker
-sudo ufw allow 22/tcp && sudo ufw allow 8088/tcp && sudo ufw enable   # keep any rules you already have (80/443 for Apache)
+sudo ufw allow 22/tcp && sudo ufw allow 80/tcp && sudo ufw enable   # keep any rules you already have (80/443 for Apache)
 ```
 
 ## 2. Get the code and configure
@@ -29,7 +29,7 @@ docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 docker compose -f docker-compose.prod.yml ps
 docker compose -f docker-compose.prod.yml logs -f backend
 ```
-Open `http://172.16.20.69:8088` (web) — the API is at `http://172.16.20.69:8088/api`. The port is `PROXY_HTTP_PORT` in `.env` (default 8088); the host's port 80 is left to Apache/OpenProject.
+Open `http://172.16.20.69` (web) — the API is at `http://172.16.20.69/api`. The port is `PROXY_HTTP_PORT` in `.env` (default 80)
 
 ## 4. Update
 ```bash
@@ -43,7 +43,7 @@ docker compose -f docker-compose.prod.yml exec -T mysql sh -c 'mysqldump -uroot 
 Schedule this with cron and copy the dumps off the VM.
 
 ## Mobile app (Flutter)
-Build with the API URL: `flutter build apk --dart-define=API_BASE_URL=http://172.16.20.69:8088/api`.
+Build with the API URL: `flutter build apk --dart-define=API_BASE_URL=http://172.16.20.69/api`.
 Android blocks plain HTTP by default for release builds — use HTTPS (below) for real distribution.
 
 ## HTTPS
