@@ -90,13 +90,13 @@ class ApiService {
     throw Exception(message);
   }
 
-  // â”€â”€ Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Auth ──────────────────────────────────────────────────────────────────
 
-  /// Ã‰tape 1 : email + mot de passe â†’ reÃ§oit requireOtp: true
+  /// Étape 1 : email + mot de passe → reçoit requireOtp: true
   static Future<Map<String, dynamic>> login(String email, String password) =>
       _request('POST', '/auth/login', body: {'email': email, 'password': password});
 
-  /// Ã‰tape 2 : vÃ©rifier le code OTP â†’ reÃ§oit le JWT
+  /// Étape 2 : vérifier le code OTP → reçoit le JWT
   static Future<Map<String, dynamic>> verifyOtp(String email, String code) =>
       _request('POST', '/auth/verify-otp', body: {'email': email, 'code': code});
 
@@ -104,7 +104,7 @@ class ApiService {
   static Future<Map<String, dynamic>> resendOtp(String email) =>
       _request('POST', '/auth/resend-otp', body: {'email': email});
 
-  /// Inscription nouvel employÃ© ou RH
+  /// Inscription nouvel employé ou RH
   static Future<Map<String, dynamic>> register(Map<String, dynamic> data) =>
       _request('POST', '/auth/register', body: data);
 
@@ -119,9 +119,15 @@ class ApiService {
         'newPassword': newPwd,
       });
 
-  // â”€â”€ Employee self-service â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Employee self-service ─────────────────────────────────────────────────
   static Future<Map<String, dynamic>> getEmployeeProfile() =>
       _request('GET', '/employees/profile');
+
+  static Future<Map<String, dynamic>> getMyLatestPaySlip() =>
+      _request('GET', '/employees/pay-slips/latest');
+
+  static Future<Map<String, dynamic>> getMyEngagements() =>
+      _request('GET', '/employees/engagements');
 
   static Future<Map<String, dynamic>> getMySalary() =>
       _request('GET', '/employees/profile/salary');
@@ -190,7 +196,7 @@ class ApiService {
   static Future<Map<String, dynamic>> requestDocument(Map<String, dynamic> data) =>
       _request('POST', '/employees/document-request', body: data);
 
-  // â”€â”€ Employees (ADMIN/RH) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Employees (ADMIN/RH) ──────────────────────────────────────────────────
   static Future<Map<String, dynamic>> getEmployees({int page = 1, int limit = 20}) =>
       _request('GET', '/employees', queryParams: {'page': '$page', 'limit': '$limit'});
 
@@ -200,7 +206,7 @@ class ApiService {
   static Future<Map<String, dynamic>> createEmployee(Map<String, dynamic> data) =>
       _request('POST', '/employees', body: data);
 
-  // â”€â”€ RH/Admin management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── RH/Admin management ──────────────────────────────────────────────────
   static Future<dynamic> getManagementAnnouncements({bool? active}) async {
     final params = <String, String>{};
     if (active != null) params['active'] = '$active';
@@ -264,11 +270,11 @@ class ApiService {
         'observations': observations,
       });
 
-  // â”€â”€ Admin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Admin ─────────────────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> getDashboardStats() =>
       _request('GET', '/admin/dashboard-stats');
 
-  // â”€â”€ RH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── RH ────────────────────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> getRhStats() =>
       _request('GET', '/rh/stats');
 
@@ -302,7 +308,7 @@ class ApiService {
   static Future<Map<String, dynamic>> processDocumentRequest(String id, String status) =>
       _request('PUT', '/rh/document-requests/$id/process', body: {'status': status});
 
-  // â”€â”€ Attendance â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Attendance ────────────────────────────────────────────────────────────
   static Future<Map<String, dynamic>> getAttendance({String? employeeId}) =>
       _request('GET', '/attendance',
           queryParams: employeeId != null ? {'employee_id': employeeId} : null);

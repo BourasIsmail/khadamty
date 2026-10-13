@@ -8,6 +8,9 @@ import '../../widgets/khadamati_logo.dart';
 import '../employee/leave_balance_screen.dart';
 import '../employee/document_request_screen.dart';
 import 'profile_tab.dart';
+import '../../widgets/employee_widgets.dart';
+import '../employee/engagements_screen.dart';
+import '../employee/pay_slips_screen.dart';
 
 class DashboardTab extends StatefulWidget {
   const DashboardTab({super.key});
@@ -21,7 +24,9 @@ class _DashboardTabState extends State<DashboardTab> {
   Map<String, dynamic>? _empStats;
   Map<String, dynamic>? _empProfile;
   Map<String, dynamic>? _leaveBalance;
-  Map<String, dynamic>? _salaryInfo;
+  Map<String, dynamic>? _latest;        // dernier bulletin : { bulletin, courant, periodeCourante }
+  Map<String, dynamic>? _engagements;   // crédits et prêts en cours
+  bool _showAmounts = false;
   bool _loading = true;
 
   @override
@@ -43,12 +48,22 @@ class _DashboardTabState extends State<DashboardTab> {
         final emp = await ApiService.getEmployeeStats();
         setState(() => _empStats = emp);
       } else {
+        // Chaque bloc se charge indépendamment : une erreur n'empêche pas d'afficher les autres
+        Future<Map<String, dynamic>?> safe(Future<Map<String, dynamic>> f) async {
+          try { return await f; } catch (e) { debugPrint('Dashboard error: $e'); return null; }
+        }
         final results = await Future.wait([
-          ApiService.getEmployeeProfile(),
-          ApiService.getMySalary(),
-          ApiService.getLeaveBalance(),
+          safe(ApiService.getEmployeeProfile()),
+          safe(ApiService.getMyLatestPaySlip()),
+          safe(ApiService.getMyEngagements()),
+          safe(ApiService.getLeaveBalance()),
         ]);
-        setState(() { _empProfile = results[0]; _salaryInfo = results[1]; _leaveBalance = results[2]; });
+        setState(() {
+          _empProfile = results[0];
+          _latest = results[1];
+          _engagements = results[2];
+          _leaveBalance = results[3];
+        });
       }
     } catch (e) {
       debugPrint('Dashboard error: $e');
@@ -60,7 +75,7 @@ class _DashboardTabState extends State<DashboardTab> {
   String _greeting() {
     final h = DateTime.now().hour;
     if (h < 12) return 'Bonjour';
-    if (h < 18) return 'Bon aprÃ¨s-midi';
+    if (h < 18) return 'Bon après-midi';
     return 'Bonsoir';
   }
 
@@ -77,14 +92,14 @@ class _DashboardTabState extends State<DashboardTab> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // â”€â”€ Header â”€â”€
+            // ── Header ──
             Row(
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${_greeting()}, ${user.firstName} ðŸ‘‹',
+                      Text('${_greeting()}, ${user.firstName} 👋',
                         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.gray900)),
                       const SizedBox(height: 2),
                       Text(DateFormat('EEEE d MMMM yyyy', 'fr_FR').format(DateTime.now()),
@@ -110,13 +125,14 @@ class _DashboardTabState extends State<DashboardTab> {
   }
 
   Widget _buildEmployeeDashboard() {
-    final salary = _salaryInfo?['salary'];
-    final fmt = NumberFormat('#,##0.00', 'fr_MA');
+    final slip = _latest?['bulletin'] is Map ? Map<String, dynamic>.from(_latest!['bulletin'] as Map) : null;
+    final isCurrent = _latest?['courant'] == true;
+    final engagements = (_engagements?['engagements'] as List?) ?? const [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Salaire
+        // Net à payer du mois
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(20),
@@ -135,43 +151,106 @@ class _DashboardTabState extends State<DashboardTab> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Salaire mensuel net',
-                    style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
-                    child: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 20),
+                  Expanded(
+                    child: Text(slip != null ? 'Net à payer — ${slip['periodeLabel']}' : 'Salaire',
+                      style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500)),
+                  ),
+                  InkWell(
+                    onTap: () => setState(() => _showAmounts = !_showAmounts),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
+                      child: Icon(_showAmounts ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.white, size: 20),
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: salary != null ? fmt.format(salary) : 'â€”',
-                      style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.white),
-                    ),
-                    const TextSpan(
-                      text: ' DH',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white70),
-                    ),
-                  ],
-                ),
-              ),
-              if (_empProfile?['position'] != null) ...[
+              if (slip != null)
+                RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: _showAmounts ? formatMoney(slip['netAPayer']) : '••••••',
+                        style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Colors.white),
+                      ),
+                      if (_showAmounts)
+                        const TextSpan(text: ' DH', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white70)),
+                    ],
+                  ),
+                )
+              else
+                const Text('Aucun bulletin de paie pour le moment',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white)),
+              if (slip != null) ...[
                 const SizedBox(height: 6),
-                Text('${_empProfile!['position']} Â· ${_empProfile!['department'] ?? ''}',
-                  style: const TextStyle(color: Colors.white60, fontSize: 12)),
+                Text(isCurrent
+                    ? 'Bulletin du mois en cours'
+                    : 'Le bulletin de ${_latest?['periodeCourante']} n’est pas encore publié — dernier bulletin affiché.',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12)),
               ],
             ],
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
 
-        // Solde congÃ©s
+        // Détail du bulletin
+        if (slip != null) ...[
+          InfoCard(
+            title: 'Mon bulletin — ${slip['periodeLabel']}',
+            icon: Icons.receipt_long_outlined,
+            trailing: TextButton(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => Scaffold(
+                backgroundColor: AppColors.surface,
+                appBar: AppBar(title: const Text('Mes bulletins')),
+                body: const PaySlipsScreen(),
+              ))),
+              child: const Text('Tous les bulletins'),
+            ),
+            child: _showAmounts
+                ? PaySlipSection(slip: slip)
+                : const Text('Le détail est masqué. Touchez l’œil pour afficher les montants.', style: TextStyle(color: AppColors.gray400)),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        // Engagements et crédits
+        InfoCard(
+          title: 'Mes engagements et crédits',
+          icon: Icons.credit_card_outlined,
+          trailing: TextButton(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EngagementsScreen())),
+            child: const Text('Détail'),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            if (engagements.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Text(
+                  _showAmounts
+                      ? '${_engagements?['nombre']} en cours · ${formatMoney(_engagements?['totalMensualites'])} DH prélevés chaque mois'
+                      : '${_engagements?['nombre']} en cours',
+                  style: const TextStyle(fontWeight: FontWeight.w700, color: AppColors.gray700)),
+              ),
+            EngagementList(engagements: engagements, hidden: !_showAmounts),
+          ]),
+        ),
+        const SizedBox(height: 16),
+
+        // Données personnelles
+        if (_empProfile != null) ...[
+          InfoCard(
+            title: 'Mes informations personnelles',
+            icon: Icons.badge_outlined,
+            child: PersonalInfoList(profile: _empProfile!, slip: slip),
+          ),
+          const SizedBox(height: 20),
+        ],
+
+        // Solde congés
         if (_leaveBalance != null) ...[
-          const Text('Solde de congÃ©s',
+          const Text('Solde de congés',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.gray900)),
           const SizedBox(height: 12),
           Row(
@@ -273,9 +352,9 @@ class _DashboardTabState extends State<DashboardTab> {
 
   Widget _buildAdminRhDashboard(String role) {
     final cards = [
-      _StatData('Total EmployÃ©s',    '${_empStats?['total_employees'] ?? 0}',  Icons.people_outline,      AppColors.primary),
-      _StatData('EmployÃ©s actifs',   '${_empStats?['active_employees'] ?? 0}', Icons.person_outline,      AppColors.primaryLight),
-      _StatData('PrÃ©sents auj.',     '${_stats?['presentToday'] ?? 0}',        Icons.access_time_outlined, AppColors.danger),
+      _StatData('Total Employés',    '${_empStats?['total_employees'] ?? 0}',  Icons.people_outline,      AppColors.primary),
+      _StatData('Employés actifs',   '${_empStats?['active_employees'] ?? 0}', Icons.person_outline,      AppColors.primaryLight),
+      _StatData('Présents auj.',     '${_stats?['presentToday'] ?? 0}',        Icons.access_time_outlined, AppColors.danger),
       _StatData('Nouveaux ce mois',  '${_empStats?['new_this_month'] ?? 0}',   Icons.trending_up,         AppColors.primary),
     ];
 
@@ -293,9 +372,9 @@ class _DashboardTabState extends State<DashboardTab> {
         ),
         const SizedBox(height: 20),
 
-        // RÃ©partition dÃ©partements
+        // Répartition départements
         if (_empStats?['department_stats'] != null) ...[
-          const Text('RÃ©partition par dÃ©partement',
+          const Text('Répartition par département',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.gray900)),
           const SizedBox(height: 12),
           Container(

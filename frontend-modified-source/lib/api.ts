@@ -243,6 +243,14 @@ class ApiClient {
     return this.request<any>('/employees/profile');
   }
 
+  async getMyLatestPaySlip() {
+    return this.request<any>('/employees/pay-slips/latest');
+  }
+
+  async getMyEngagements() {
+    return this.request<any>('/employees/engagements');
+  }
+
   async getMySalary() {
     return this.request<any>('/employees/profile/salary');
   }
