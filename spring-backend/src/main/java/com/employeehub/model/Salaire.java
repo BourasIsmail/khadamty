@@ -1,8 +1,11 @@
 package com.employeehub.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "salaire", uniqueConstraints = {
@@ -70,6 +73,12 @@ public class Salaire {
 
     @Column(name = "autres_retenues", precision = 10, scale = 2)
     private BigDecimal autresRetenues;
+
+    /** Détail des retenues du mois (une ligne par retenue). Source de vérité des bulletins saisis. */
+    @JsonIgnore
+    @OneToMany(mappedBy = "salaire", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OrderBy("ordre ASC")
+    private List<RetenueLigne> lignesRetenue = new ArrayList<>();
 
     @Column(name = "cree_le", nullable = false)
     private LocalDateTime creeLe;
@@ -165,9 +174,55 @@ public class Salaire {
             .add(z(primes)).add(z(allocFamiliale)).add(z(rappel));
     }
 
+    @JsonIgnore
+    public List<RetenueLigne> getLignesRetenue() { return lignesRetenue; }
+
+    /** Remplace les lignes de retenue (désérialisation JSON « retenues » et saisie). */
+    @com.fasterxml.jackson.annotation.JsonSetter("retenues")
+    public void setRetenues(List<RetenueLigne> lignes) {
+        this.lignesRetenue.clear();
+        if (lignes == null) return;
+        int i = 0;
+        for (RetenueLigne l : lignes) {
+            l.setSalaire(this);
+            l.setOrdre(i++);
+            this.lignesRetenue.add(l);
+        }
+    }
+
+    /**
+     * Détail des retenues tel qu'affiché : les lignes saisies ou, pour un ancien bulletin sans détail,
+     * les anciens montants fixes (retraite, AMO, mutuelle, IR, autres) présentés comme des lignes.
+     */
+    @com.fasterxml.jackson.annotation.JsonGetter("retenues")
+    public List<RetenueLigne> getRetenues() {
+        if (!lignesRetenue.isEmpty()) return lignesRetenue;
+        List<RetenueLigne> legacy = new ArrayList<>();
+        addLegacy(legacy, "Retraite", retenueRetraite);
+        addLegacy(legacy, "Assurance maladie (AMO)", retenueAmo);
+        addLegacy(legacy, "Mutuelle", retenueMutuelle);
+        addLegacy(legacy, "Impôt sur le revenu (IR)", retenueIr);
+        addLegacy(legacy, "Autres retenues", autresRetenues);
+        return legacy;
+    }
+
+    private static void addLegacy(List<RetenueLigne> out, String type, BigDecimal amount) {
+        if (amount != null && amount.signum() > 0) out.add(new RetenueLigne(type, amount));
+    }
+
+    /** Efface les anciens montants fixes : le détail des lignes devient l'unique source. */
+    public void clearLegacyRetenues() {
+        this.retenueRetraite = BigDecimal.ZERO;
+        this.retenueAmo = BigDecimal.ZERO;
+        this.retenueMutuelle = BigDecimal.ZERO;
+        this.retenueIr = BigDecimal.ZERO;
+        this.autresRetenues = BigDecimal.ZERO;
+    }
+
     public BigDecimal getTotalRetenues() {
-        return z(retenueRetraite).add(z(retenueAmo)).add(z(retenueMutuelle))
-            .add(z(retenueIr)).add(z(autresRetenues));
+        BigDecimal total = BigDecimal.ZERO;
+        for (RetenueLigne l : getRetenues()) total = total.add(z(l.getMontant()));
+        return total;
     }
 
     /** Recalcule le net à payer = total gains - total retenues (bulletins saisis avec détail). */

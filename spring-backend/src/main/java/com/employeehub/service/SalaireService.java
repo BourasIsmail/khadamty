@@ -2,6 +2,7 @@ package com.employeehub.service;
 
 import com.employeehub.model.Employee;
 import com.employeehub.model.Grade;
+import com.employeehub.model.RetenueLigne;
 import com.employeehub.model.Salaire;
 import com.employeehub.repository.EmployeeRepository;
 import com.employeehub.repository.GradeRepository;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -55,6 +57,7 @@ public class SalaireService {
     private void normalizeAndValidate(Salaire s) {
         if (s.getSalaireBase() == null || s.getSalaireBase().signum() <= 0)
             throw new RuntimeException("Le salaire de base est obligatoire");
+        normalizeRetenues(s, new ArrayList<>(s.getRetenues()));
         s.setIndemniteLogement(nz(s.getIndemniteLogement()));
         s.setIndemniteTransport(nz(s.getIndemniteTransport()));
         s.setIndemniteFonction(nz(s.getIndemniteFonction()));
@@ -75,6 +78,36 @@ public class SalaireService {
         s.recomputeNet();
         if (s.getSalaireNet().signum() < 0)
             throw new RuntimeException("Les retenues dépassent la rémunération");
+    }
+
+    /**
+     * Valide et enregistre le détail des retenues du bulletin. Les lignes vides sont ignorées ;
+     * les anciens montants fixes sont remis à zéro car le détail devient l'unique source.
+     */
+    private void normalizeRetenues(Salaire s, List<RetenueLigne> source) {
+        List<RetenueLigne> cleaned = new ArrayList<>();
+        for (RetenueLigne l : source) {
+            boolean noType = l.getType() == null || l.getType().isBlank();
+            boolean noAmount = l.getMontant() == null || l.getMontant().signum() == 0;
+            if (noType && noAmount) continue;
+            if (noType) throw new RuntimeException("Chaque retenue doit avoir un type");
+
+            RetenueLigne c = new RetenueLigne();
+            c.setType(l.getType().trim());
+            c.setMontant(nz(l.getMontant()));
+            c.setNumeroDossier(l.getNumeroDossier() == null || l.getNumeroDossier().isBlank() ? null : l.getNumeroDossier().trim());
+            c.setMontantTotal(l.getMontantTotal());
+            c.setMontantRestant(l.getMontantRestant());
+            c.setMoisRestants(l.getMoisRestants());
+            if (c.getMontant().signum() < 0
+                    || (c.getMontantTotal() != null && c.getMontantTotal().signum() < 0)
+                    || (c.getMontantRestant() != null && c.getMontantRestant().signum() < 0)
+                    || (c.getMoisRestants() != null && c.getMoisRestants() < 0))
+                throw new RuntimeException("Les montants ne peuvent pas être négatifs");
+            cleaned.add(c);
+        }
+        s.setRetenues(cleaned);
+        s.clearLegacyRetenues();
     }
 
     private static java.math.BigDecimal nz(java.math.BigDecimal v) { return v != null ? v : java.math.BigDecimal.ZERO; }
@@ -125,11 +158,10 @@ public class SalaireService {
         salaire.setPrimes(d.getPrimes());
         salaire.setAllocFamiliale(d.getAllocFamiliale());
         salaire.setRappel(d.getRappel());
-        salaire.setRetenueRetraite(d.getRetenueRetraite());
-        salaire.setRetenueAmo(d.getRetenueAmo());
-        salaire.setRetenueMutuelle(d.getRetenueMutuelle());
-        salaire.setRetenueIr(d.getRetenueIr());
-        salaire.setAutresRetenues(d.getAutresRetenues());
+        // Détail des retenues : lignes fournies (ou anciens montants fixes convertis en lignes)
+        List<RetenueLigne> incoming = new ArrayList<>(d.getRetenues());
+        salaire.clearLegacyRetenues();   // sinon les anciens montants réapparaîtraient comme lignes
+        salaire.setRetenues(incoming);
         normalizeAndValidate(salaire);
         return salaireRepository.save(salaire);
     }

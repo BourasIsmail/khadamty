@@ -260,19 +260,45 @@ export default function SalairesPage() {
                       </div>
                     </div>
 
-                    <div className="rounded-xl border border-gray-100 p-4">
-                      <p className="text-sm font-semibold text-gray-800 mb-3">Retenues</p>
-                      <div className="space-y-2 text-sm">
-                        {[
-                          ['Retraite', selectedBulletin.deductions?.retraite],
-                          ['Assurance maladie (AMO)', selectedBulletin.deductions?.amo],
-                          ['Mutuelle', selectedBulletin.deductions?.mutuelle],
-                          ['Impôt sur le revenu (IR)', selectedBulletin.deductions?.ir],
-                          ['Autres retenues', selectedBulletin.deductions?.autres],
-                        ].filter(([, v]) => Number(v || 0) > 0).map(([label, v]) => (
-                          <div key={label as string} className="flex items-center justify-between"><span className="text-gray-600">{label as string}</span><span className="font-semibold text-red-600">-{formatMoney(v)} DH</span></div>
-                        ))}
-                        <div className="pt-2 border-t border-gray-100 flex items-center justify-between"><span className="font-semibold text-gray-900">Total retenues</span><span className="font-bold text-red-600">-{formatMoney(selectedBulletin.deductions?.totalDeductions)} DH</span></div>
+                    <div className="rounded-xl border border-gray-100 p-4 md:col-span-2">
+                      <p className="text-sm font-semibold text-gray-800 mb-3">
+                        Détail des retenues mensuelles — {selectedBulletin.periodeLabel}
+                      </p>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full text-sm">
+                          <thead>
+                            <tr className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide text-left">
+                              <th className="px-3 py-2">Type de retenue</th>
+                              <th className="px-3 py-2 text-right">Retenue mensuelle</th>
+                              <th className="px-3 py-2">N° dossier</th>
+                              <th className="px-3 py-2 text-right">Montant total du prêt</th>
+                              <th className="px-3 py-2 text-right">Montant restant</th>
+                              <th className="px-3 py-2 text-right">Mois restants</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-50">
+                            {(selectedBulletin.deductions?.lignes ?? []).length === 0 && (
+                              <tr><td colSpan={6} className="px-3 py-4 text-center text-gray-400">Aucune retenue ce mois-ci</td></tr>
+                            )}
+                            {(selectedBulletin.deductions?.lignes ?? []).map((l: any, i: number) => (
+                              <tr key={i}>
+                                <td className="px-3 py-2 text-gray-800">{l.type}</td>
+                                <td className="px-3 py-2 text-right font-semibold text-red-600">-{formatMoney(l.montant)} DH</td>
+                                <td className="px-3 py-2 text-gray-600">{l.numeroDossier || ''}</td>
+                                <td className="px-3 py-2 text-right text-gray-600">{l.montantTotal != null ? `${formatMoney(l.montantTotal)} DH` : ''}</td>
+                                <td className="px-3 py-2 text-right text-gray-600">{l.montantRestant != null ? `${formatMoney(l.montantRestant)} DH` : ''}</td>
+                                <td className="px-3 py-2 text-right text-gray-600">{l.moisRestants ?? ''}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot>
+                            <tr className="border-t border-gray-200">
+                              <td className="px-3 py-2 font-semibold text-gray-900">Total retenues</td>
+                              <td className="px-3 py-2 text-right font-bold text-red-600">-{formatMoney(selectedBulletin.deductions?.totalDeductions)} DH</td>
+                              <td colSpan={4} />
+                            </tr>
+                          </tfoot>
+                        </table>
                       </div>
                     </div>
                   </div>

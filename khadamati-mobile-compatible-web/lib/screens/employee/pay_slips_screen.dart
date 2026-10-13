@@ -173,14 +173,8 @@ class _PaySlipsScreenState extends State<PaySlipsScreen> {
         _row('Total gains', remuneration['totalGains'], strong: true),
       ]),
       const SizedBox(height: 12),
-      _section('Retenues', Icons.remove_circle_outline, [
-        ..._extraRows(deductions, const {
-          'retraite': 'Retraite',
-          'amo': 'Assurance maladie (AMO)',
-          'mutuelle': 'Mutuelle',
-          'ir': 'Impôt sur le revenu (IR)',
-          'autres': 'Autres retenues',
-        }, danger: true),
+      _section('Détail des retenues mensuelles', Icons.remove_circle_outline, [
+        ..._retenueRows(deductions),
         _row('Total retenues', deductions['totalDeductions'], strong: true, danger: true),
       ]),
       const SizedBox(height: 12),
@@ -195,6 +189,35 @@ class _PaySlipsScreenState extends State<PaySlipsScreen> {
         ),
       ]),
     ]);
+  }
+
+  /// Une ligne par retenue ; pour un prêt : n° de dossier, montant total, montant restant, mois restants.
+  List<Widget> _retenueRows(Map<String, dynamic> deductions) {
+    final lines = (deductions['lignes'] as List?) ?? const [];
+    if (lines.isEmpty) {
+      return [const Padding(
+        padding: EdgeInsets.symmetric(vertical: 6),
+        child: Text('Aucune retenue ce mois-ci', style: TextStyle(color: AppColors.gray400)),
+      )];
+    }
+    final widgets = <Widget>[];
+    for (final raw in lines) {
+      final l = Map<String, dynamic>.from(raw as Map);
+      widgets.add(_row('${l['type'] ?? ''}', l['montant'], danger: true));
+      final details = <String>[
+        if ((l['numeroDossier'] ?? '').toString().isNotEmpty) 'Dossier ${l['numeroDossier']}',
+        if (l['montantTotal'] != null) 'Total ${_money(l['montantTotal'])} DH',
+        if (l['montantRestant'] != null) 'Restant ${_money(l['montantRestant'])} DH',
+        if (l['moisRestants'] != null) '${l['moisRestants']} mois restants',
+      ];
+      if (details.isNotEmpty) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(details.join(' · '), style: const TextStyle(fontSize: 12, color: AppColors.gray500)),
+        ));
+      }
+    }
+    return widgets;
   }
 
   /// Lignes de détail du bulletin : seuls les montants non nuls sont affichés.

@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import toast from 'react-hot-toast'
 import { XMarkIcon } from '@heroicons/react/24/outline'
+import {
+  RetenueForm, carryOverRetenues, retenueFromApi, retenuesError, retenuesToPayload, retenuesTotal,
+} from '@/lib/retenues'
+import RetenuesEditor from './RetenuesEditor'
 
 const inputCls = 'w-full px-3 py-2 rounded-xl border-2 border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-600 transition bg-gray-50 focus:bg-white'
 const labelCls = 'block text-xs font-semibold text-gray-600 mb-1'
@@ -18,16 +22,8 @@ export const GAINS = [
   { key: 'rappel', label: 'Rappel' },
 ] as const
 
-export const RETENUES = [
-  { key: 'retenueRetraite', label: 'Retraite' },
-  { key: 'retenueAmo', label: 'Assurance maladie (AMO)' },
-  { key: 'retenueMutuelle', label: 'Mutuelle' },
-  { key: 'retenueIr', label: 'Impôt sur le revenu (IR)' },
-  { key: 'autresRetenues', label: 'Autres retenues' },
-] as const
-
-export type AmountKey = typeof GAINS[number]['key'] | typeof RETENUES[number]['key']
-export const AMOUNT_KEYS: AmountKey[] = [...GAINS, ...RETENUES].map((f) => f.key)
+export type AmountKey = typeof GAINS[number]['key']
+export const AMOUNT_KEYS: AmountKey[] = GAINS.map((f) => f.key)
 
 export const emptyAmounts = () =>
   Object.fromEntries(AMOUNT_KEYS.map((k) => [k, ''])) as Record<AmountKey, string>
@@ -66,6 +62,7 @@ export default function BulletinForm({ initial, defaultMois, defaultAnnee, onClo
     }
     return base
   })
+  const [retenues, setRetenues] = useState<RetenueForm[]>(() => (initial?.retenues ?? []).map(retenueFromApi))
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -88,6 +85,7 @@ export default function BulletinForm({ initial, defaultMois, defaultAnnee, onClo
       for (const k of AMOUNT_KEYS) next[k] = toField(last[k])
       if (!next.salaireBase) next.salaireBase = toField(last.salaireBaseEffectif)
       setAmounts(next)
+      setRetenues(carryOverRetenues((last.retenues ?? []).map(retenueFromApi)))
       setEchelon(last.echelon ?? '')
       toast.success(`Montants repris du bulletin ${last.mois}/${last.annee}`)
     } catch {
@@ -97,14 +95,16 @@ export default function BulletinForm({ initial, defaultMois, defaultAnnee, onClo
 
   const totals = useMemo(() => {
     const gains = GAINS.reduce((sum, f) => sum + num(amounts[f.key]), 0)
-    const retenues = RETENUES.reduce((sum, f) => sum + num(amounts[f.key]), 0)
-    return { gains, retenues, net: gains - retenues }
-  }, [amounts])
+    const total = retenuesTotal(retenues)
+    return { gains, retenues: total, net: gains - total }
+  }, [amounts, retenues])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!employeeId) return toast.error('Choisissez un employé')
     if (num(amounts.salaireBase) <= 0) return toast.error('Le salaire de base est obligatoire')
+    const lineError = retenuesError(retenues)
+    if (lineError) return toast.error(lineError)
     if (totals.net < 0) return toast.error('Les retenues dépassent la rémunération')
 
     const payload: Record<string, any> = {
@@ -115,6 +115,7 @@ export default function BulletinForm({ initial, defaultMois, defaultAnnee, onClo
       grade: initial?.grade?.id ? { id: initial.grade.id } : null,
     }
     for (const k of AMOUNT_KEYS) payload[k] = num(amounts[k])
+    payload.retenues = retenuesToPayload(retenues)
 
     setSaving(true)
     try {
@@ -217,8 +218,8 @@ export default function BulletinForm({ initial, defaultMois, defaultAnnee, onClo
           </section>
 
           <section>
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Retenues (MAD)</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">{RETENUES.map(field)}</div>
+            <h3 className="text-sm font-semibold text-gray-900 mb-3">Détail des retenues mensuelles</h3>
+            <RetenuesEditor value={retenues} onChange={setRetenues} />
           </section>
 
           <section className="rounded-xl bg-green-50 border border-green-100 p-4 grid grid-cols-3 gap-3 text-sm">

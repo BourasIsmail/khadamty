@@ -3,6 +3,7 @@ package com.employeehub.service;
 import com.employeehub.model.Document;
 import com.employeehub.model.Employee;
 import com.employeehub.model.Grade;
+import com.employeehub.model.RetenueLigne;
 import com.employeehub.model.Salaire;
 import com.lowagie.text.Chunk;
 import com.lowagie.text.Element;
@@ -78,14 +79,36 @@ public class PdfGenerationService {
         pdf.add(remuneration);
         pdf.add(Chunk.NEWLINE);
 
-        pdf.add(new Paragraph("Retenues", sectionFont));
-        PdfPTable deductions = amountTable();
-        addAmountRowIfPositive(deductions, "Retraite", salaire.getRetenueRetraite());
-        addAmountRowIfPositive(deductions, "Assurance maladie (AMO)", salaire.getRetenueAmo());
-        addAmountRowIfPositive(deductions, "Mutuelle", salaire.getRetenueMutuelle());
-        addAmountRowIfPositive(deductions, "Impot sur le revenu (IR)", salaire.getRetenueIr());
-        addAmountRowIfPositive(deductions, "Autres retenues", salaire.getAutresRetenues());
-        addAmountRow(deductions, "Total retenues", salaire.getTotalRetenues());
+        pdf.add(new Paragraph("Detail des retenues mensuelles - " + monthLabel(salaire.getMois()) + " " + salaire.getAnnee(), sectionFont));
+        PdfPTable deductions = new PdfPTable(new float[]{3f, 2f, 2f, 2.4f, 2.2f, 1.6f});
+        deductions.setWidthPercentage(100);
+        addHeader(deductions, "Type de retenue");
+        addHeader(deductions, "Retenue mensuelle");
+        addHeader(deductions, "N° dossier");
+        addHeader(deductions, "Montant total du pret");
+        addHeader(deductions, "Montant restant");
+        addHeader(deductions, "Mois restants");
+        if (salaire.getRetenues().isEmpty()) {
+            PdfPCell none = new PdfPCell(new Phrase("Aucune retenue ce mois-ci", FontFactory.getFont(FontFactory.HELVETICA, 10)));
+            none.setColspan(6);
+            none.setPadding(6);
+            deductions.addCell(none);
+        }
+        for (RetenueLigne ligne : salaire.getRetenues()) {
+            addCell(deductions, ligne.getType());
+            addCell(deductions, money(ligne.getMontant()) + " MAD");
+            addCell(deductions, ligne.getNumeroDossier() == null ? "" : ligne.getNumeroDossier());
+            addCell(deductions, ligne.getMontantTotal() == null ? "" : money(ligne.getMontantTotal()) + " MAD");
+            addCell(deductions, ligne.getMontantRestant() == null ? "" : money(ligne.getMontantRestant()) + " MAD");
+            addCell(deductions, ligne.getMoisRestants() == null ? "" : String.valueOf(ligne.getMoisRestants()));
+        }
+        PdfPCell totalLabel = new PdfPCell(new Phrase("Total retenues", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10)));
+        totalLabel.setPadding(6);
+        deductions.addCell(totalLabel);
+        PdfPCell totalValue = new PdfPCell(new Phrase(money(salaire.getTotalRetenues()) + " MAD", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10)));
+        totalValue.setPadding(6);
+        totalValue.setColspan(5);
+        deductions.addCell(totalValue);
         pdf.add(deductions);
         pdf.add(Chunk.NEWLINE);
 
