@@ -9,7 +9,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -71,6 +74,37 @@ public class SalaireController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
+    }
+
+    /**
+     * Saisie en masse d'un mois de paie. Chaque ligne est traitée indépendamment :
+     * une ligne invalide (ou déjà saisie) n'empêche pas l'enregistrement des autres.
+     */
+    @PostMapping("/bulk")
+    public ResponseEntity<?> createBulk(@RequestBody List<Salaire> salaires) {
+        if (salaires == null || salaires.isEmpty())
+            return ResponseEntity.badRequest().body(Map.of("message", "Aucun bulletin à enregistrer"));
+        if (salaires.size() > 1000)
+            return ResponseEntity.badRequest().body(Map.of("message", "Maximum 1000 bulletins par envoi"));
+
+        int created = 0;
+        List<Map<String, Object>> failed = new ArrayList<>();
+        for (int i = 0; i < salaires.size(); i++) {
+            try {
+                salaireService.createSalaire(salaires.get(i));
+                created++;
+            } catch (Exception e) {
+                Map<String, Object> error = new LinkedHashMap<>();
+                error.put("index", i);
+                error.put("message", e.getMessage() != null ? e.getMessage() : "Erreur inattendue");
+                failed.add(error);
+            }
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("total", salaires.size());
+        result.put("created", created);
+        result.put("failed", failed);
+        return ResponseEntity.ok(result);
     }
 
     @PutMapping("/{id}")

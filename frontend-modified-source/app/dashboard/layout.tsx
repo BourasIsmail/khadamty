@@ -66,9 +66,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const profileRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // La session enregistrée n'est relue qu'après le premier rendu côté client : sans cette garde,
+  // un rechargement de page (F5) renvoyait à tort vers la page de connexion.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
   useEffect(() => {
-    if (!isAuthenticated) router.push('/login')
-  }, [isAuthenticated, router])
+    if (mounted && !isAuthenticated) router.push('/login')
+  }, [mounted, isAuthenticated, router])
 
   useEffect(() => {
     if (isAuthenticated && user?.passwordChangeRequired && pathname !== '/dashboard/profile') {

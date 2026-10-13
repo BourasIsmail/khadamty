@@ -43,7 +43,8 @@ public class SecurityConfig {
         http.csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/auth/login", "/auth/register").permitAll()
+                .requestMatchers("/auth/login").permitAll()
+                .requestMatchers("/auth/register").hasRole("ADMIN") // création de compte réservée à l'administrateur
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
@@ -55,7 +56,11 @@ public class SecurityConfig {
                     "/employees/attendances", "/employees/leave-availability",
                     "/employees/pay-slips", "/employees/pay-slips/**")
                     .hasAnyRole("ADMIN", "RH", "EMPLOYEE")
-                // Gestion des employés (liste, création, modification, suppression, salaires) : RH/Admin
+                // Création de comptes (employés) : Admin uniquement
+                .requestMatchers(HttpMethod.POST, "/employees").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.PUT, "/employees/*").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/employees/*").hasRole("ADMIN")
+                // Consultation de la liste, des fiches et des salaires : RH/Admin
                 .requestMatchers("/employees/**").hasAnyRole("ADMIN", "RH")
                 // Pointage : chacun peut pointer et consulter ; la saisie/modification manuelle est réservée à RH/Admin
                 .requestMatchers(HttpMethod.GET, "/attendance/**").hasAnyRole("ADMIN", "RH", "EMPLOYEE")
@@ -73,7 +78,9 @@ public class SecurityConfig {
                 .requestMatchers("/ordres-mission/**").hasAnyRole("ADMIN", "RH")
                 // Autres ressources RH/Admin
                 .requestMatchers("/structures/**").hasAnyRole("ADMIN", "RH")
-                .requestMatchers("/salaires/**").hasAnyRole("ADMIN", "RH")
+                // Salaires : consultation RH/Admin ; saisie, correction et suppression des bulletins : Admin uniquement
+                .requestMatchers(HttpMethod.GET, "/salaires/**").hasAnyRole("ADMIN", "RH")
+                .requestMatchers("/salaires/**").hasRole("ADMIN")
                 .requestMatchers("/grades/**").hasAnyRole("ADMIN", "RH")
                 .requestMatchers("/coordinations/**").hasAnyRole("ADMIN", "RH")
                 .requestMatchers("/delegations/**").hasAnyRole("ADMIN", "RH")

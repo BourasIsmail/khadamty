@@ -664,29 +664,28 @@ public class EmployeeController {
 
     private Map<String, Object> toPayslip(Salaire salaire) {
         BigDecimal net = defaultZero(salaire.getSalaireNet());
-        BigDecimal allocFamiliale = defaultZero(salaire.getAllocFamiliale());
-        BigDecimal retenueMutuelle = defaultZero(salaire.getRetenueMutuelle());
-        BigDecimal rappel = defaultZero(salaire.getRappel());
-
-        BigDecimal salaireBase = net.add(retenueMutuelle).subtract(allocFamiliale).subtract(rappel);
-        if (salaireBase.compareTo(BigDecimal.ZERO) < 0) {
-            salaireBase = BigDecimal.ZERO;
-        }
-
-        BigDecimal totalGains = salaireBase.add(allocFamiliale).add(rappel);
-        BigDecimal totalDeductions = retenueMutuelle;
+        BigDecimal totalGains = salaire.getTotalGains();
+        BigDecimal totalDeductions = salaire.getTotalRetenues();
 
         Employee employee = salaire.getEmployee();
         Grade grade = salaire.getGrade();
 
         Map<String, Object> remuneration = new LinkedHashMap<>();
-        remuneration.put("salaireBase", salaireBase);
-        remuneration.put("allocFamiliale", allocFamiliale);
-        remuneration.put("rappel", rappel);
+        remuneration.put("salaireBase", salaire.getSalaireBaseEffectif());
+        remuneration.put("indemniteLogement", defaultZero(salaire.getIndemniteLogement()));
+        remuneration.put("indemniteTransport", defaultZero(salaire.getIndemniteTransport()));
+        remuneration.put("indemniteFonction", defaultZero(salaire.getIndemniteFonction()));
+        remuneration.put("primes", defaultZero(salaire.getPrimes()));
+        remuneration.put("allocFamiliale", defaultZero(salaire.getAllocFamiliale()));
+        remuneration.put("rappel", defaultZero(salaire.getRappel()));
         remuneration.put("totalGains", totalGains);
 
         Map<String, Object> deductions = new LinkedHashMap<>();
-        deductions.put("mutuelle", retenueMutuelle);
+        deductions.put("retraite", defaultZero(salaire.getRetenueRetraite()));
+        deductions.put("amo", defaultZero(salaire.getRetenueAmo()));
+        deductions.put("mutuelle", defaultZero(salaire.getRetenueMutuelle()));
+        deductions.put("ir", defaultZero(salaire.getRetenueIr()));
+        deductions.put("autres", defaultZero(salaire.getAutresRetenues()));
         deductions.put("totalDeductions", totalDeductions);
 
         Map<String, Object> bulletin = new LinkedHashMap<>();

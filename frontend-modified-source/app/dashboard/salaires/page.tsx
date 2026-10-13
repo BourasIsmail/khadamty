@@ -6,8 +6,10 @@ import { useAuthStore } from '@/lib/store'
 import toast from 'react-hot-toast'
 import {
   MagnifyingGlassIcon, BanknotesIcon, CalendarIcon,
-  DocumentTextIcon, ArrowDownTrayIcon,
+  DocumentTextIcon, ArrowDownTrayIcon, PlusIcon, PencilSquareIcon, TrashIcon, TableCellsIcon,
 } from '@heroicons/react/24/outline'
+import BulletinForm from './BulletinForm'
+import BulkBulletins from './BulkBulletins'
 
 export default function SalairesPage() {
   const { user } = useAuthStore()
@@ -18,21 +20,25 @@ export default function SalairesPage() {
   const [search, setSearch] = useState('')
   const [mois, setMois] = useState('')
   const [annee, setAnnee] = useState(new Date().getFullYear().toString())
+  const [showForm, setShowForm] = useState(false)
+  const [showBulk, setShowBulk] = useState(false)
+  const [editing, setEditing] = useState<any>(null)
 
   const formatMoney = (value: any) =>
     new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value || 0))
 
   const mapSalaireForAdminTable = (s: any) => {
     const net = Number(s?.salaireNet ?? 0)
-    const retenue = Number(s?.retenueMutuelle ?? 0)
+    const retenue = Number(s?.totalRetenues ?? s?.retenueMutuelle ?? 0)
     return {
+      raw: s,
       id: s?.id,
       employeNom: s?.employee?.lastName ?? '',
       employePrenom: s?.employee?.firstName ?? '',
       employeMatricule: s?.employee?.employeeId ?? '',
       mois: s?.mois,
       annee: s?.annee,
-      montantBrut: net + retenue,
+      montantBrut: Number(s?.totalGains ?? net + retenue),
       deductions: retenue,
       montantNet: net,
       statut: 'PAYE',
@@ -104,6 +110,17 @@ export default function SalairesPage() {
     }
   }
 
+  const handleDeleteSalaire = async (salaire: any) => {
+    if (!confirm(`Supprimer le bulletin ${salaire.mois}/${salaire.annee} de ${salaire.employePrenom} ${salaire.employeNom} ?`)) return
+    try {
+      await api.deleteSalaire(salaire.id)
+      toast.success('Bulletin supprimé')
+      load()
+    } catch (e: any) {
+      toast.error(e.message || 'Erreur lors de la suppression')
+    }
+  }
+
   const getStatutColor = (statut: string) => {
     switch (statut) {
       case 'PAYE': return 'bg-green-100 text-green-700'
@@ -116,6 +133,7 @@ export default function SalairesPage() {
 
   const totalSalaires = filteredSalaires.reduce((sum, s) => sum + (s.montantNet || 0), 0)
   const isEmployee = user?.role === 'EMPLOYEE'
+  const isAdmin = user?.role === 'ADMIN'
 
   if (isEmployee) {
     return (
@@ -227,9 +245,17 @@ export default function SalairesPage() {
                     <div className="rounded-xl border border-gray-100 p-4">
                       <p className="text-sm font-semibold text-gray-800 mb-3">Elements de remuneration</p>
                       <div className="space-y-2 text-sm">
-                        <div className="flex items-center justify-between"><span className="text-gray-600">Salaire de base</span><span className="font-semibold">{formatMoney(selectedBulletin.remuneration?.salaireBase)} DH</span></div>
-                        <div className="flex items-center justify-between"><span className="text-gray-600">Allocation familiale</span><span className="font-semibold">{formatMoney(selectedBulletin.remuneration?.allocFamiliale)} DH</span></div>
-                        <div className="flex items-center justify-between"><span className="text-gray-600">Rappel</span><span className="font-semibold">{formatMoney(selectedBulletin.remuneration?.rappel)} DH</span></div>
+                        {[
+                          ['Salaire de base', selectedBulletin.remuneration?.salaireBase, true],
+                          ['Indemnité de logement', selectedBulletin.remuneration?.indemniteLogement],
+                          ['Indemnité de transport', selectedBulletin.remuneration?.indemniteTransport],
+                          ['Indemnité de fonction', selectedBulletin.remuneration?.indemniteFonction],
+                          ['Primes', selectedBulletin.remuneration?.primes],
+                          ['Allocation familiale', selectedBulletin.remuneration?.allocFamiliale],
+                          ['Rappel', selectedBulletin.remuneration?.rappel],
+                        ].filter(([, v, always]) => always || Number(v || 0) > 0).map(([label, v]) => (
+                          <div key={label as string} className="flex items-center justify-between"><span className="text-gray-600">{label as string}</span><span className="font-semibold">{formatMoney(v)} DH</span></div>
+                        ))}
                         <div className="pt-2 border-t border-gray-100 flex items-center justify-between"><span className="font-semibold text-gray-900">Total gains</span><span className="font-bold text-green-700">{formatMoney(selectedBulletin.remuneration?.totalGains)} DH</span></div>
                       </div>
                     </div>
@@ -237,7 +263,15 @@ export default function SalairesPage() {
                     <div className="rounded-xl border border-gray-100 p-4">
                       <p className="text-sm font-semibold text-gray-800 mb-3">Retenues</p>
                       <div className="space-y-2 text-sm">
-                        <div className="flex items-center justify-between"><span className="text-gray-600">Mutuelle</span><span className="font-semibold text-red-600">-{formatMoney(selectedBulletin.deductions?.mutuelle)} DH</span></div>
+                        {[
+                          ['Retraite', selectedBulletin.deductions?.retraite],
+                          ['Assurance maladie (AMO)', selectedBulletin.deductions?.amo],
+                          ['Mutuelle', selectedBulletin.deductions?.mutuelle],
+                          ['Impôt sur le revenu (IR)', selectedBulletin.deductions?.ir],
+                          ['Autres retenues', selectedBulletin.deductions?.autres],
+                        ].filter(([, v]) => Number(v || 0) > 0).map(([label, v]) => (
+                          <div key={label as string} className="flex items-center justify-between"><span className="text-gray-600">{label as string}</span><span className="font-semibold text-red-600">-{formatMoney(v)} DH</span></div>
+                        ))}
                         <div className="pt-2 border-t border-gray-100 flex items-center justify-between"><span className="font-semibold text-gray-900">Total retenues</span><span className="font-bold text-red-600">-{formatMoney(selectedBulletin.deductions?.totalDeductions)} DH</span></div>
                       </div>
                     </div>
@@ -259,11 +293,29 @@ export default function SalairesPage() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Consultation des Salaires</h1>
-          <p className="text-gray-500 mt-1">{filteredSalaires.length} salaire{filteredSalaires.length !== 1 ? 's' : ''}</p>
+          <h1 className="text-2xl font-bold text-gray-900">{isAdmin ? 'Gestion des Salaires' : 'Consultation des Salaires'}</h1>
+          <p className="text-gray-500 mt-1">{filteredSalaires.length} bulletin{filteredSalaires.length !== 1 ? 's' : ''}</p>
         </div>
+        {isAdmin && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setShowBulk(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-green-50 text-green-700 text-sm font-semibold rounded-xl border border-green-200 transition"
+            >
+              <TableCellsIcon className="h-4 w-4" />
+              Saisie en masse
+            </button>
+            <button
+              onClick={() => { setEditing(null); setShowForm(true) }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition shadow-lg shadow-green-500/25"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Nouveau bulletin
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Stats */}
@@ -359,7 +411,7 @@ export default function SalairesPage() {
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-6 py-3">Déductions</th>
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-6 py-3">Salaire Net</th>
                   <th className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-6 py-3">Statut</th>
-                  <th className="text-right text-xs font-semibold text-gray-500 uppercase tracking-wide px-6 py-3">PDF</th>
+                  <th className="text-right text-xs font-semibold text-gray-500 uppercase tracking-wide px-6 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -391,13 +443,33 @@ export default function SalairesPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handleDownloadSalaire(salaire)}
-                        className="inline-flex items-center justify-center p-2 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition"
-                        title="Télécharger le bulletin PDF"
-                      >
-                        <ArrowDownTrayIcon className="h-4 w-4" />
-                      </button>
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          onClick={() => handleDownloadSalaire(salaire)}
+                          className="inline-flex items-center justify-center p-2 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition"
+                          title="Télécharger le bulletin PDF"
+                        >
+                          <ArrowDownTrayIcon className="h-4 w-4" />
+                        </button>
+                        {isAdmin && (
+                          <>
+                            <button
+                              onClick={() => { setEditing(salaire.raw); setShowForm(true) }}
+                              className="inline-flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 transition"
+                              title="Modifier le bulletin"
+                            >
+                              <PencilSquareIcon className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSalaire(salaire)}
+                              className="inline-flex items-center justify-center p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition"
+                              title="Supprimer le bulletin"
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -406,6 +478,25 @@ export default function SalairesPage() {
           </div>
         )}
       </div>
+
+      {showBulk && (
+        <BulkBulletins
+          defaultMois={mois ? parseInt(mois, 10) : new Date().getMonth() + 1}
+          defaultAnnee={annee ? parseInt(annee, 10) : new Date().getFullYear()}
+          onClose={() => setShowBulk(false)}
+          onSaved={() => { setShowBulk(false); load() }}
+        />
+      )}
+
+      {showForm && (
+        <BulletinForm
+          initial={editing}
+          defaultMois={mois ? parseInt(mois, 10) : new Date().getMonth() + 1}
+          defaultAnnee={annee ? parseInt(annee, 10) : new Date().getFullYear()}
+          onClose={() => setShowForm(false)}
+          onSaved={() => { setShowForm(false); load() }}
+        />
+      )}
     </div>
   )
 }

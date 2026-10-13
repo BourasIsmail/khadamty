@@ -43,6 +43,34 @@ public class Salaire {
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal rappel = BigDecimal.ZERO;
     
+    // ── Détail mensuel (saisi par l'administrateur). Nuls sur les anciens bulletins. ──
+    @Column(name = "salaire_base", precision = 10, scale = 2)
+    private BigDecimal salaireBase;
+
+    @Column(name = "indemnite_logement", precision = 10, scale = 2)
+    private BigDecimal indemniteLogement;
+
+    @Column(name = "indemnite_transport", precision = 10, scale = 2)
+    private BigDecimal indemniteTransport;
+
+    @Column(name = "indemnite_fonction", precision = 10, scale = 2)
+    private BigDecimal indemniteFonction;
+
+    @Column(precision = 10, scale = 2)
+    private BigDecimal primes;
+
+    @Column(name = "retenue_retraite", precision = 10, scale = 2)
+    private BigDecimal retenueRetraite;
+
+    @Column(name = "retenue_amo", precision = 10, scale = 2)
+    private BigDecimal retenueAmo;
+
+    @Column(name = "retenue_ir", precision = 10, scale = 2)
+    private BigDecimal retenueIr;
+
+    @Column(name = "autres_retenues", precision = 10, scale = 2)
+    private BigDecimal autresRetenues;
+
     @Column(name = "cree_le", nullable = false)
     private LocalDateTime creeLe;
     
@@ -93,6 +121,60 @@ public class Salaire {
     public BigDecimal getRappel() { return rappel; }
     public void setRappel(BigDecimal rappel) { this.rappel = rappel; }
     
+    public BigDecimal getSalaireBase() { return salaireBase; }
+    public void setSalaireBase(BigDecimal salaireBase) { this.salaireBase = salaireBase; }
+
+    public BigDecimal getIndemniteLogement() { return indemniteLogement; }
+    public void setIndemniteLogement(BigDecimal v) { this.indemniteLogement = v; }
+
+    public BigDecimal getIndemniteTransport() { return indemniteTransport; }
+    public void setIndemniteTransport(BigDecimal v) { this.indemniteTransport = v; }
+
+    public BigDecimal getIndemniteFonction() { return indemniteFonction; }
+    public void setIndemniteFonction(BigDecimal v) { this.indemniteFonction = v; }
+
+    public BigDecimal getPrimes() { return primes; }
+    public void setPrimes(BigDecimal primes) { this.primes = primes; }
+
+    public BigDecimal getRetenueRetraite() { return retenueRetraite; }
+    public void setRetenueRetraite(BigDecimal v) { this.retenueRetraite = v; }
+
+    public BigDecimal getRetenueAmo() { return retenueAmo; }
+    public void setRetenueAmo(BigDecimal v) { this.retenueAmo = v; }
+
+    public BigDecimal getRetenueIr() { return retenueIr; }
+    public void setRetenueIr(BigDecimal v) { this.retenueIr = v; }
+
+    public BigDecimal getAutresRetenues() { return autresRetenues; }
+    public void setAutresRetenues(BigDecimal v) { this.autresRetenues = v; }
+
+    // ── Calculs (non persistés) ──────────────────────────────────────────────
+
+    private static BigDecimal z(BigDecimal v) { return v != null ? v : BigDecimal.ZERO; }
+
+    /** Salaire de base saisi ; pour un ancien bulletin sans détail, il est déduit du net. */
+    public BigDecimal getSalaireBaseEffectif() {
+        if (salaireBase != null) return salaireBase;
+        BigDecimal estimated = z(salaireNet).add(z(retenueMutuelle)).subtract(z(allocFamiliale)).subtract(z(rappel));
+        return estimated.signum() < 0 ? BigDecimal.ZERO : estimated;
+    }
+
+    public BigDecimal getTotalGains() {
+        return getSalaireBaseEffectif()
+            .add(z(indemniteLogement)).add(z(indemniteTransport)).add(z(indemniteFonction))
+            .add(z(primes)).add(z(allocFamiliale)).add(z(rappel));
+    }
+
+    public BigDecimal getTotalRetenues() {
+        return z(retenueRetraite).add(z(retenueAmo)).add(z(retenueMutuelle))
+            .add(z(retenueIr)).add(z(autresRetenues));
+    }
+
+    /** Recalcule le net à payer = total gains - total retenues (bulletins saisis avec détail). */
+    public void recomputeNet() {
+        this.salaireNet = getTotalGains().subtract(getTotalRetenues());
+    }
+
     public LocalDateTime getCreeLe() { return creeLe; }
     public void setCreeLe(LocalDateTime creeLe) { this.creeLe = creeLe; }
 }
