@@ -697,11 +697,18 @@ public class EmployeeController {
         remuneration.put("totalGains", totalGains);
 
         Map<String, Object> deductions = new LinkedHashMap<>();
-        deductions.put("retraite", defaultZero(salaire.getRetenueRetraite()));
-        deductions.put("amo", defaultZero(salaire.getRetenueAmo()));
-        deductions.put("mutuelle", defaultZero(salaire.getRetenueMutuelle()));
-        deductions.put("ir", defaultZero(salaire.getRetenueIr()));
-        deductions.put("autres", defaultZero(salaire.getAutresRetenues()));
+        List<Map<String, Object>> lignes = new ArrayList<>();
+        for (RetenueLigne l : salaire.getRetenues()) {
+            Map<String, Object> line = new LinkedHashMap<>();
+            line.put("type", l.getType());
+            line.put("montant", defaultZero(l.getMontant()));
+            line.put("numeroDossier", l.getNumeroDossier());
+            line.put("montantTotal", l.getMontantTotal());
+            line.put("montantRestant", l.getMontantRestant());
+            line.put("moisRestants", l.getMoisRestants());
+            lignes.add(line);
+        }
+        deductions.put("lignes", lignes);
         deductions.put("totalDeductions", totalDeductions);
 
         Map<String, Object> bulletin = new LinkedHashMap<>();

@@ -4,7 +4,12 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '@/lib/api'
 import toast from 'react-hot-toast'
 import { XMarkIcon, ArrowUpTrayIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
-import { GAINS, RETENUES, AMOUNT_KEYS, AmountKey, emptyAmounts, num, fmt, toField } from './BulletinForm'
+import { GAINS, AMOUNT_KEYS, AmountKey, emptyAmounts, num, fmt, toField } from './BulletinForm'
+import RetenuesEditor from './RetenuesEditor'
+import {
+  RetenueForm, STANDARD_RETENUES, carryOverRetenues, emptyRetenue, retenueFromApi, retenuesError,
+  retenuesToPayload, retenuesTotal,
+} from '@/lib/retenues'
 import { buildCsv, buildXlsx, mapTable, parseCsv, readXlsx, TemplateRow } from '@/lib/bulletinSheet'
 
 interface Row {
@@ -13,6 +18,7 @@ interface Row {
   include: boolean
   echelon: string
   amounts: Record<AmountKey, string>
+  retenues: RetenueForm[]
   error?: string
 }
 
@@ -24,10 +30,14 @@ interface Props {
 }
 
 const inputCls = 'w-24 px-2 py-1 rounded-lg border border-gray-200 text-sm text-right focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-600 bg-white disabled:bg-gray-100'
-const FIELDS = [...GAINS, ...RETENUES]
+// Colonnes du modèle Excel/CSV : rémunération + retenues courantes (les prêts se règlent via « Détail »)
+const SHEET_FIELDS = [...GAINS, ...STANDARD_RETENUES.map((r) => ({ key: r.key, label: r.label }))]
 
-const netOf = (amounts: Record<AmountKey, string>) =>
-  GAINS.reduce((s, f) => s + num(amounts[f.key]), 0) - RETENUES.reduce((s, f) => s + num(amounts[f.key]), 0)
+const netOf = (r: { amounts: Record<AmountKey, string>; retenues: RetenueForm[] }) =>
+  GAINS.reduce((sum, f) => sum + num(r.amounts[f.key]), 0) - retenuesTotal(r.retenues)
+
+/** Montant de la première ligne d'un type donné (pour remplir une colonne du modèle). */
+const standardAmount = (lines: RetenueForm[], type: string) => toField(lines.find((l) => l.type === type)?.montant)
 
 export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSaved }: Props) {
   const [mois, setMois] = useState(defaultMois)
@@ -38,6 +48,7 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
   const [sending, setSending] = useState(false)
   const [summary, setSummary] = useState<{ created: number; failed: number } | null>(null)
   const [dirty, setDirty] = useState(false)
+  const [editRetenuesFor, setEditRetenuesFor] = useState<any>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -71,11 +82,13 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
           const exists = existing.has(String(emp.id))
           const prev = prevByEmp.get(String(emp.id))
           const amounts = emptyAmounts()
+          let retenues: RetenueForm[] = []
           if (prev && !exists) {
             for (const k of AMOUNT_KEYS) amounts[k] = toField(prev[k])
             if (!amounts.salaireBase) amounts.salaireBase = toField(prev.salaireBaseEffectif)
+            retenues = carryOverRetenues((prev.retenues ?? []).map(retenueFromApi))
           }
-          return { emp, exists, include: !exists && !!prev, echelon: prev?.echelon ?? '', amounts }
+          return { emp, exists, include: !exists && !!prev, echelon: prev?.echelon ?? '', amounts, retenues }
         }))
       })
       .catch((e: any) => toast.error(e.message || 'Erreur de chargement'))
@@ -94,7 +107,7 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
 
   const selectable = rows.filter((r) => !r.exists)
   const selected = rows.filter((r) => r.include && !r.exists)
-  const totalNet = useMemo(() => selected.reduce((s, r) => s + netOf(r.amounts), 0), [selected])
+  const totalNet = useMemo(() => selected.reduce((sum, r) => sum + netOf(r), 0), [selected])
 
   const setAll = (value: boolean) =>
     setRows((prev) => prev.map((r) => (r.exists ? r : { ...r, include: value })))
@@ -104,12 +117,11 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
   const fileBase = `bulletins-${annee}-${String(mois).padStart(2, '0')}`
 
   const templateRows = (): TemplateRow[] =>
-    rows.filter((r) => !r.exists).map((r) => ({
-      matricule: r.emp.employeeId,
-      nom: `${r.emp.lastName} ${r.emp.firstName}`,
-      echelon: r.echelon,
-      amounts: r.amounts,
-    }))
+    rows.filter((r) => !r.exists).map((r) => {
+      const amounts: Record<string, string> = { ...r.amounts }
+      for (const st of STANDARD_RETENUES) amounts[st.key] = standardAmount(r.retenues, st.type)
+      return { matricule: r.emp.employeeId, nom: `${r.emp.lastName} ${r.emp.firstName}`, echelon: r.echelon, amounts }
+    })
 
   const saveBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob)
@@ -124,7 +136,7 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
 
   const downloadXlsx = async () => {
     try {
-      const buffer = await buildXlsx(FIELDS, templateRows(), periodLabel, RETENUES.map((f) => f.key))
+      const buffer = await buildXlsx(SHEET_FIELDS, templateRows(), periodLabel, STANDARD_RETENUES.map((f) => f.key))
       saveBlob(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${fileBase}.xlsx`)
     } catch (e: any) {
       toast.error(e.message || 'Impossible de générer le modèle Excel')
@@ -132,14 +144,14 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
   }
 
   const downloadCsv = () =>
-    saveBlob(new Blob([buildCsv(FIELDS, templateRows())], { type: 'text/csv;charset=utf-8' }), `${fileBase}.csv`)
+    saveBlob(new Blob([buildCsv(SHEET_FIELDS, templateRows())], { type: 'text/csv;charset=utf-8' }), `${fileBase}.csv`)
 
   const importFile = async (file: File) => {
     try {
       const isExcel = /\.xlsx$/i.test(file.name)
       if (/\.xls$/i.test(file.name)) throw new Error('Ancien format .xls non pris en charge : enregistrez le fichier en .xlsx')
       const table = isExcel ? await readXlsx(await file.arrayBuffer()) : parseCsv(await file.text())
-      const { entries, unknownColumns } = mapTable(table, FIELDS)
+      const { entries, unknownColumns } = mapTable(table, SHEET_FIELDS)
 
       const byMat = new Map(rows.map((r) => [r.emp.employeeId, r]))
       const updates = new Map<any, Partial<Row>>()
@@ -151,7 +163,17 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
         if (row.exists) { skipped++; continue }
         const amounts = emptyAmounts()
         for (const k of AMOUNT_KEYS) amounts[k] = entry.amounts[k] ?? ''
-        updates.set(row.emp.id, { amounts, echelon: entry.echelon, include: true })
+        // Retenues courantes présentes dans le fichier : elles remplacent les lignes du même type ;
+        // les autres lignes (prêts, avances…) déjà préparées sont conservées.
+        const present = STANDARD_RETENUES.filter((st) => entry.amounts[st.key] !== undefined)
+        const types = new Set<string>(present.map((st) => st.type))
+        const retenues = [
+          ...row.retenues.filter((l) => !types.has(l.type)),
+          ...present
+            .filter((st) => num(entry.amounts[st.key]) > 0)
+            .map((st) => ({ ...emptyRetenue(), type: st.type, montant: entry.amounts[st.key] })),
+        ]
+        updates.set(row.emp.id, { amounts, retenues, echelon: entry.echelon, include: true })
       }
       setRows((prev) => prev.map((r) => (updates.has(r.emp.id) ? { ...r, ...updates.get(r.emp.id), error: undefined } : r)))
       toast.success(`${updates.size} ligne(s) importée(s)`)
@@ -165,11 +187,11 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
 
   // ── Envoi ─────────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    const invalid = selected.filter((r) => num(r.amounts.salaireBase) <= 0 || netOf(r.amounts) < 0)
+    const invalid = selected.filter((r) => num(r.amounts.salaireBase) <= 0 || netOf(r) < 0 || retenuesError(r.retenues) !== null)
     if (invalid.length > 0) {
       const ids = new Set(invalid.map((r) => r.emp.id))
       setRows((prev) => prev.map((r) => ids.has(r.emp.id)
-        ? { ...r, error: num(r.amounts.salaireBase) <= 0 ? 'Salaire de base requis' : 'Net négatif' }
+        ? { ...r, error: num(r.amounts.salaireBase) <= 0 ? 'Salaire de base requis' : retenuesError(r.retenues) ?? 'Net négatif' }
         : r))
       return toast.error(`${invalid.length} ligne(s) à corriger`)
     }
@@ -181,6 +203,7 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
         employee: { id: r.emp.id }, annee, mois, echelon: r.echelon.trim() || null, grade: null,
       }
       for (const k of AMOUNT_KEYS) item[k] = num(r.amounts[k])
+      item.retenues = retenuesToPayload(r.retenues)
       return item
     })
 
@@ -268,17 +291,16 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
                   <tr className="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                     <th className="sticky left-0 z-10 bg-gray-50 px-3 py-2 text-left min-w-[14rem]">Employé</th>
                     <th className="px-2 py-2">Échelon</th>
-                    {FIELDS.map((f) => (
-                      <th key={f.key} className={`px-2 py-2 text-right whitespace-nowrap ${RETENUES.some((r) => r.key === f.key) ? 'text-red-500' : ''}`}>
-                        {f.label.replace(' *', '')}
-                      </th>
+                    {GAINS.map((f) => (
+                      <th key={f.key} className="px-2 py-2 text-right whitespace-nowrap">{f.label.replace(' *', '')}</th>
                     ))}
+                    <th className="px-2 py-2 text-right whitespace-nowrap text-red-500">Retenues</th>
                     <th className="px-3 py-2 text-right">Net</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {rows.map((r) => {
-                    const net = netOf(r.amounts)
+                    const net = netOf(r)
                     return (
                       <tr key={r.emp.id} className={r.error ? 'bg-red-50' : r.exists ? 'bg-gray-50/70 text-gray-400' : ''}>
                         <td className="sticky left-0 z-10 bg-inherit px-3 py-2">
@@ -300,13 +322,22 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
                             onChange={(e) => updateRow(r.emp.id, { echelon: e.target.value })}
                             className="w-16 px-2 py-1 rounded-lg border border-gray-200 text-sm bg-white disabled:bg-gray-100" />
                         </td>
-                        {FIELDS.map((f) => (
+                        {GAINS.map((f) => (
                           <td key={f.key} className="px-2 py-1">
                             <input type="number" min="0" step="0.01" inputMode="decimal" disabled={r.exists}
                               value={r.amounts[f.key]} onChange={(e) => setAmount(r.emp.id, f.key, e.target.value)}
                               className={inputCls} />
                           </td>
                         ))}
+                        <td className="px-2 py-1 text-right whitespace-nowrap">
+                          {!r.exists && (
+                            <button type="button" onClick={() => setEditRetenuesFor(r.emp.id)}
+                              className="text-red-600 hover:underline text-sm" title="Modifier le détail des retenues">
+                              {fmt(retenuesTotal(r.retenues))}
+                              <span className="ml-1 text-xs text-gray-400">({r.retenues.length}) Détail</span>
+                            </button>
+                          )}
+                        </td>
                         <td className={`px-3 py-2 text-right font-semibold whitespace-nowrap ${net < 0 ? 'text-red-600' : 'text-green-700'}`}>
                           {r.exists ? '' : fmt(net)}
                         </td>
@@ -335,6 +366,27 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
           </div>
         </div>
       </div>
+
+      {editRetenuesFor !== null && (() => {
+        const row = rows.find((r) => r.emp.id === editRetenuesFor)
+        if (!row) return null
+        return (
+          <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-black/50 p-4">
+            <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl my-10 p-6">
+              <h3 className="text-base font-bold text-gray-900 mb-1">Détail des retenues</h3>
+              <p className="text-sm text-gray-500 mb-4">{row.emp.lastName} {row.emp.firstName} — {row.emp.employeeId}</p>
+              <RetenuesEditor
+                value={row.retenues}
+                onChange={(next) => updateRow(row.emp.id, { retenues: next, include: true })}
+              />
+              <div className="mt-5 flex justify-end">
+                <button type="button" onClick={() => setEditRetenuesFor(null)}
+                  className="px-5 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold">Terminé</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }

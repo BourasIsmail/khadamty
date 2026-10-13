@@ -45,4 +45,35 @@ class SalaireTest {
         assertEquals(0, d("3500").compareTo(s.getTotalGains())); // 2950 + 300 + 250
         assertEquals(0, d("150").compareTo(s.getTotalRetenues()));
     }
+
+    @Test
+    void deductionLinesAreTheSourceOfTruthAndOverrideLegacyFields() {
+        Salaire s = new Salaire();
+        s.setSalaireBase(d("8000"));
+        s.setRetenueMutuelle(d("999")); // ancien montant : ignoré dès qu'il y a des lignes
+        RetenueLigne mutuelle = new RetenueLigne("Mutuelle", d("150"));
+        RetenueLigne pret = new RetenueLigne("Crédit bancaire", d("1200"));
+        pret.setNumeroDossier("D-42");
+        pret.setMontantTotal(d("24000"));
+        pret.setMontantRestant(d("12000"));
+        pret.setMoisRestants(10);
+        s.setRetenues(java.util.List.of(mutuelle, pret));
+
+        s.recomputeNet();
+
+        assertEquals(2, s.getRetenues().size());
+        assertEquals(0, d("1350").compareTo(s.getTotalRetenues()));
+        assertEquals(0, d("6650").compareTo(s.getSalaireNet()));
+    }
+
+    @Test
+    void legacyDeductionFieldsAreShownAsLines() {
+        Salaire s = new Salaire();
+        s.setRetenueMutuelle(d("150"));
+        s.setRetenueIr(d("300"));
+
+        assertEquals(java.util.List.of("Mutuelle", "Impôt sur le revenu (IR)"),
+            s.getRetenues().stream().map(RetenueLigne::getType).toList());
+        assertEquals(0, d("450").compareTo(s.getTotalRetenues()));
+    }
 }
