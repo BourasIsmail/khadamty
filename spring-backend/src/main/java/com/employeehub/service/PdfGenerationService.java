@@ -64,28 +64,28 @@ public class PdfGenerationService {
         pdf.add(Chunk.NEWLINE);
 
         BigDecimal net = defaultZero(salaire.getSalaireNet());
-        BigDecimal allocFamiliale = defaultZero(salaire.getAllocFamiliale());
-        BigDecimal retenueMutuelle = defaultZero(salaire.getRetenueMutuelle());
-        BigDecimal rappel = defaultZero(salaire.getRappel());
-        BigDecimal salaireBase = net.add(retenueMutuelle).subtract(allocFamiliale).subtract(rappel);
-        if (salaireBase.compareTo(BigDecimal.ZERO) < 0) {
-            salaireBase = BigDecimal.ZERO;
-        }
-        BigDecimal totalGains = salaireBase.add(allocFamiliale).add(rappel);
 
         pdf.add(new Paragraph("Remuneration", sectionFont));
         PdfPTable remuneration = amountTable();
-        addAmountRow(remuneration, "Salaire de base estime", salaireBase);
-        addAmountRow(remuneration, "Allocations familiales", allocFamiliale);
-        addAmountRow(remuneration, "Rappel", rappel);
-        addAmountRow(remuneration, "Total gains", totalGains);
+        addAmountRow(remuneration, "Salaire de base", salaire.getSalaireBaseEffectif());
+        addAmountRowIfPositive(remuneration, "Indemnite de logement", salaire.getIndemniteLogement());
+        addAmountRowIfPositive(remuneration, "Indemnite de transport", salaire.getIndemniteTransport());
+        addAmountRowIfPositive(remuneration, "Indemnite de fonction", salaire.getIndemniteFonction());
+        addAmountRowIfPositive(remuneration, "Primes", salaire.getPrimes());
+        addAmountRowIfPositive(remuneration, "Allocations familiales", salaire.getAllocFamiliale());
+        addAmountRowIfPositive(remuneration, "Rappel", salaire.getRappel());
+        addAmountRow(remuneration, "Total gains", salaire.getTotalGains());
         pdf.add(remuneration);
         pdf.add(Chunk.NEWLINE);
 
         pdf.add(new Paragraph("Retenues", sectionFont));
         PdfPTable deductions = amountTable();
-        addAmountRow(deductions, "Retenue mutuelle", retenueMutuelle);
-        addAmountRow(deductions, "Total retenues", retenueMutuelle);
+        addAmountRowIfPositive(deductions, "Retraite", salaire.getRetenueRetraite());
+        addAmountRowIfPositive(deductions, "Assurance maladie (AMO)", salaire.getRetenueAmo());
+        addAmountRowIfPositive(deductions, "Mutuelle", salaire.getRetenueMutuelle());
+        addAmountRowIfPositive(deductions, "Impot sur le revenu (IR)", salaire.getRetenueIr());
+        addAmountRowIfPositive(deductions, "Autres retenues", salaire.getAutresRetenues());
+        addAmountRow(deductions, "Total retenues", salaire.getTotalRetenues());
         pdf.add(deductions);
         pdf.add(Chunk.NEWLINE);
 
@@ -137,6 +137,10 @@ public class PdfGenerationService {
         PdfPTable table = new PdfPTable(2);
         table.setWidthPercentage(100);
         return table;
+    }
+
+    private void addAmountRowIfPositive(PdfPTable table, String label, BigDecimal amount) {
+        if (amount != null && amount.signum() > 0) addAmountRow(table, label, amount);
     }
 
     private void addAmountRow(PdfPTable table, String label, BigDecimal amount) {

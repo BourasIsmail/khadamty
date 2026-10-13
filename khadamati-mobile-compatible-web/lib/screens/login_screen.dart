@@ -4,10 +4,9 @@ import 'package:provider/provider.dart';
 import '../core/constants.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/khadamati_logo.dart';
-import 'register_screen.dart';
 
 // ── Modes de la page login ────────────────────────────────────────────────────
-enum LoginMode { select, adminLogin, rhChoice, rhLogin, empChoice, empLogin, otp }
+enum LoginMode { select, adminLogin, rhLogin, empLogin, otp }
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -142,7 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: AppColors.primary,
                   title: 'Ressources Humaines',
                   subtitle: 'Gestion employés & demandes',
-                  onTap: () => _goTo(LoginMode.rhChoice),
+                  onTap: () => _goTo(LoginMode.rhLogin),
                 ),
                 const SizedBox(height: 12),
                 _roleCard(
@@ -150,7 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: AppColors.primaryLight,
                   title: 'Employé',
                   subtitle: 'Congés, attestations, profil',
-                  onTap: () => _goTo(LoginMode.empChoice),
+                  onTap: () => _goTo(LoginMode.empLogin),
                 ),
               ],
 
@@ -159,40 +158,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 _loginForm('Espace Administrateur',
                     'Connectez-vous avec vos identifiants', AppColors.danger, auth),
 
-              // ── Choix RH ───────────────────────────────────────────────
-              if (_mode == LoginMode.rhChoice) ...[
-                _backButton(),
-                _choiceCard(
-                  icon: Icons.work_outline,
-                  color: AppColors.primary,
-                  title: 'Espace RH',
-                  yesLabel: 'J\'ai un compte RH',
-                  noLabel: 'Je m\'inscris comme RH',
-                  onYes: () => _goTo(LoginMode.rhLogin),
-                  onNo: () => Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => RegisterScreen(role: 'RH'))),
-                ),
-              ],
-
               // ── Connexion RH ───────────────────────────────────────────
               if (_mode == LoginMode.rhLogin)
                 _loginForm('Connexion RH',
                     'Accédez à votre espace Ressources Humaines', AppColors.primary, auth),
-
-              // ── Choix Employé ──────────────────────────────────────────
-              if (_mode == LoginMode.empChoice) ...[
-                _backButton(),
-                _choiceCard(
-                  icon: Icons.person_outline,
-                  color: AppColors.primaryLight,
-                  title: 'Espace Employé',
-                  yesLabel: 'J\'ai un compte',
-                  noLabel: 'Je m\'inscris',
-                  onYes: () => _goTo(LoginMode.empLogin),
-                  onNo: () => Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => RegisterScreen(role: 'EMPLOYEE'))),
-                ),
-              ],
 
               // ── Connexion Employé ──────────────────────────────────────
               if (_mode == LoginMode.empLogin)
@@ -360,46 +329,6 @@ class _LoginScreenState extends State<LoginScreen> {
       ]),
     ),
   );
-
-  Widget _choiceCard({
-    required IconData icon, required Color color,
-    required String title, required String yesLabel, required String noLabel,
-    required VoidCallback onYes, required VoidCallback onNo,
-  }) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Container(
-      width: 48, height: 48,
-      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-      child: Icon(icon, color: color, size: 24),
-    ),
-    const SizedBox(height: 12),
-    Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.gray900)),
-    const SizedBox(height: 6),
-    const Text('Avez-vous déjà un compte ?',
-      style: TextStyle(fontSize: 13, color: AppColors.gray400)),
-    const SizedBox(height: 20),
-    SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: onYes,
-        icon: const Icon(Icons.check_circle_outline, size: 18),
-        label: Text(yesLabel),
-      ),
-    ),
-    const SizedBox(height: 10),
-    SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: onNo,
-        icon: const Icon(Icons.person_add_outlined, size: 18),
-        label: Text(noLabel),
-        style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.gray700,
-          side: const BorderSide(color: AppColors.gray200),
-          padding: const EdgeInsets.symmetric(vertical: 14),
-        ),
-      ),
-    ),
-  ]);
 
   Widget _loginForm(String title, String subtitle, Color color, AuthProvider auth) =>
     Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

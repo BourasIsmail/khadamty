@@ -162,13 +162,25 @@ class _PaySlipsScreenState extends State<PaySlipsScreen> {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       _section('Éléments de rémunération', Icons.trending_up_outlined, [
         _row('Salaire de base', remuneration['salaireBase']),
-        _row('Allocation familiale', remuneration['allocFamiliale']),
-        _row('Rappel', remuneration['rappel']),
+        ..._extraRows(remuneration, const {
+          'indemniteLogement': 'Indemnité de logement',
+          'indemniteTransport': 'Indemnité de transport',
+          'indemniteFonction': 'Indemnité de fonction',
+          'primes': 'Primes',
+          'allocFamiliale': 'Allocation familiale',
+          'rappel': 'Rappel',
+        }),
         _row('Total gains', remuneration['totalGains'], strong: true),
       ]),
       const SizedBox(height: 12),
       _section('Retenues', Icons.remove_circle_outline, [
-        _row('Mutuelle', deductions['mutuelle'], danger: true),
+        ..._extraRows(deductions, const {
+          'retraite': 'Retraite',
+          'amo': 'Assurance maladie (AMO)',
+          'mutuelle': 'Mutuelle',
+          'ir': 'Impôt sur le revenu (IR)',
+          'autres': 'Autres retenues',
+        }, danger: true),
         _row('Total retenues', deductions['totalDeductions'], strong: true, danger: true),
       ]),
       const SizedBox(height: 12),
@@ -183,6 +195,16 @@ class _PaySlipsScreenState extends State<PaySlipsScreen> {
         ),
       ]),
     ]);
+  }
+
+  /// Lignes de détail du bulletin : seuls les montants non nuls sont affichés.
+  List<Widget> _extraRows(Map<String, dynamic> source, Map<String, String> labels, {bool danger = false}) {
+    final rows = <Widget>[];
+    labels.forEach((key, label) {
+      final value = source[key];
+      if (value is num && value > 0) rows.add(_row(label, value, danger: danger));
+    });
+    return rows;
   }
 
   Widget _section(String title, IconData icon, List<Widget> children) => Container(
