@@ -4,12 +4,14 @@ import com.employeehub.model.User;
 import com.employeehub.repository.UserRepository;
 import com.employeehub.repository.EmployeeRepository;
 import com.employeehub.repository.AttendanceRepository;
+import com.employeehub.service.PasswordGeneratorService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -27,9 +29,14 @@ public class AdminController {
     private final UserRepository userRepository;
     private final EmployeeRepository employeeRepository;
     private final AttendanceRepository attendanceRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final PasswordGeneratorService passwordGeneratorService;
 
     public AdminController(UserRepository userRepository, EmployeeRepository employeeRepository,
-                          AttendanceRepository attendanceRepository) {
+                          AttendanceRepository attendanceRepository, PasswordEncoder passwordEncoder,
+                          PasswordGeneratorService passwordGeneratorService) {
+        this.passwordEncoder = passwordEncoder;
+        this.passwordGeneratorService = passwordGeneratorService;
         this.userRepository = userRepository;
         this.employeeRepository = employeeRepository;
         this.attendanceRepository = attendanceRepository;
@@ -88,6 +95,33 @@ public class AdminController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body("Error: " + e.getMessage());
         }
+    }
+
+    // Réinitialiser le mot de passe d'un utilisateur : fourni par l'admin, sinon généré (affiché une seule fois)
+    @PostMapping("/users/{id}/reset-password")
+    public ResponseEntity<?> resetPassword(@PathVariable Long id,
+                                           @RequestBody(required = false) Map<String, String> body) {
+        Optional<User> userOpt = userRepository.findById(id);
+        if (userOpt.isEmpty()) return ResponseEntity.notFound().build();
+
+        String provided = body != null ? body.get("password") : null;
+        boolean generated = provided == null || provided.isBlank();
+        if (!generated && provided.length() < 8) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Le mot de passe doit contenir au moins 8 caractères"));
+        }
+        String password = generated ? passwordGeneratorService.generateTemporaryPassword() : provided;
+
+        User user = userOpt.get();
+        user.setPassword(passwordEncoder.encode(password));
+        user.setPasswordChangeRequired(true); // l'utilisateur devra le changer à la prochaine connexion
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Mot de passe réinitialisé");
+        response.put("email", user.getEmail());
+        if (generated) response.put("temporaryPassword", password);
+        return ResponseEntity.ok(response);
     }
 
     // Modifier un utilisateur

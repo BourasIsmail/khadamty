@@ -493,7 +493,15 @@ public class EmployeeController {
                 accountRole = User.Role.RH;
             }
 
-            String password = passwordGeneratorService.generateTemporaryPassword();
+            // Mot de passe initial : choisi par l'administrateur, sinon généré
+            Object requestedPassword = employeeData.get("password");
+            String providedPassword = requestedPassword instanceof String p && !p.isBlank() ? p : null;
+            if (providedPassword != null && providedPassword.length() < 8) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Le mot de passe doit contenir au moins 8 caractères"));
+            }
+            boolean passwordGenerated = providedPassword == null;
+            String password = passwordGenerated ? passwordGeneratorService.generateTemporaryPassword() : providedPassword;
+            boolean accountCreated = false;
 
             // Vérifier si un compte existe déjà pour cet email
             if (userRepository.findByEmail(email).isEmpty()) {
@@ -506,6 +514,7 @@ public class EmployeeController {
                 user.setActive(true);
                 user.setPasswordChangeRequired(true);
                 userRepository.save(user);
+                accountCreated = true;
                 System.out.println("✅ Compte créé pour: " + email + " | Rôle: " + accountRole.name());
             } else {
                 System.out.println("⚠️ Compte déjà existant pour: " + email);
@@ -513,15 +522,22 @@ public class EmployeeController {
 
             Employee saved = employeeRepository.save(employee);
 
-            // Envoyer email de bienvenue avec les credentials
-            mailService.sendWelcomeEmail(email, employee.getFirstName(), employee.getLastName(),
-                employeeId, password, accountRole.name());
+            // Email de bienvenue (seulement si l'envoi est configuré et qu'un compte vient d'être créé)
+            boolean emailSent = accountCreated && mailService.sendWelcomeEmail(email, employee.getFirstName(),
+                employee.getLastName(), employeeId, password, accountRole.name());
 
             Map<String, Object> response = new HashMap<>();
-            response.put("message", "Employé créé avec succès. Un email de bienvenue a été envoyé.");
+            response.put("message", !accountCreated
+                ? "Employé créé. Un compte existait déjà pour cet email : son mot de passe n'a pas été modifié."
+                : emailSent
+                    ? "Employé créé avec succès. Un email de bienvenue a été envoyé."
+                    : "Employé créé avec succès. Communiquez-lui son mot de passe.");
             response.put("employee", saved);
-            response.put("temporaryPasswordGenerated", true);
-            response.put("passwordChangeRequired", true);
+            response.put("accountCreated", accountCreated);
+            response.put("emailSent", emailSent);
+            response.put("passwordChangeRequired", accountCreated);
+            // Le mot de passe généré n'est montré qu'une seule fois, à l'administrateur, dans cette réponse
+            if (accountCreated && passwordGenerated) response.put("temporaryPassword", password);
 
             return ResponseEntity.ok(response);
 

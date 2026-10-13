@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import toast from 'react-hot-toast'
-import { MagnifyingGlassIcon, ShieldCheckIcon, ShieldExclamationIcon } from '@heroicons/react/24/outline'
+import { MagnifyingGlassIcon, ShieldCheckIcon, ShieldExclamationIcon, KeyIcon } from '@heroicons/react/24/outline'
+import CredentialsDialog from '../_components/CredentialsDialog'
 
 const ROLES = [
   { value: 'ADMIN', label: 'Admin', color: 'bg-red-100 text-red-700' },
@@ -18,6 +19,7 @@ export default function AdminPage() {
   const [search, setSearch] = useState('')
   const [role, setRole] = useState('')
   const [loading, setLoading] = useState(true)
+  const [credentials, setCredentials] = useState<{ email: string; password: string } | null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -43,6 +45,27 @@ export default function AdminPage() {
       toast.error(e.message)
     }
   }
+
+  const handleResetPassword = async (u: any) => {
+    const name = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email
+    const input = window.prompt(
+      `Nouveau mot de passe pour ${name} (8 caractères minimum).\nLaissez vide pour en générer un automatiquement :`
+    )
+    if (input === null) return
+    if (input.trim() !== '' && input.trim().length < 8) {
+      toast.error('Le mot de passe doit contenir au moins 8 caractères')
+      return
+    }
+    try {
+      const res = await api.resetUserPassword(u.id, input.trim() || undefined)
+      setCredentials({ email: res.email || u.email, password: res.temporaryPassword || input.trim() })
+    } catch (e: any) {
+      toast.error(e.message || 'Erreur lors de la réinitialisation')
+    }
+  }
+
+  // Le serveur envoie le champ « active » (getter Java isActive()), l'ancien code lisait « isActive »
+  const isActiveUser = (u: any) => Boolean(u.active ?? u.isActive ?? u.is_active)
 
   const roleBadge = (r: string) => {
     const found = ROLES.find((x) => x.value === r)
@@ -125,9 +148,9 @@ export default function AdminPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">{u.email}</td>
-                    <td className="px-6 py-4">{roleBadge(u.role?.toLowerCase?.() || u.role)}</td>
+                    <td className="px-6 py-4">{roleBadge(String(u.role || '').toUpperCase())}</td>
                     <td className="px-6 py-4">
-                      {(u.isActive ?? u.is_active) ? (
+                      {isActiveUser(u) ? (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
                           Actif
                         </span>
@@ -143,15 +166,22 @@ export default function AdminPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => toggleStatus(u.id, u.isActive ?? u.is_active)}
+                          onClick={() => handleResetPassword(u)}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
+                          title="Réinitialiser le mot de passe"
+                        >
+                          <KeyIcon className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => toggleStatus(u.id, isActiveUser(u))}
                           className={`p-1.5 rounded-lg transition ${
-                            (u.isActive ?? u.is_active)
+                            isActiveUser(u)
                               ? 'text-gray-400 hover:text-red-600 hover:bg-red-50'
                               : 'text-gray-400 hover:text-emerald-600 hover:bg-emerald-50'
                           }`}
-                          title={(u.isActive ?? u.is_active) ? 'Désactiver' : 'Activer'}
+                          title={isActiveUser(u) ? 'Désactiver' : 'Activer'}
                         >
-                          {(u.isActive ?? u.is_active) ? (
+                          {isActiveUser(u) ? (
                             <ShieldExclamationIcon className="h-4 w-4" />
                           ) : (
                             <ShieldCheckIcon className="h-4 w-4" />
@@ -166,6 +196,18 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {credentials && (
+        <CredentialsDialog
+          title="Mot de passe réinitialisé"
+          rows={[
+            { label: 'Email', value: credentials.email },
+            { label: 'Mot de passe temporaire', value: credentials.password, secret: true },
+          ]}
+          note="Ce mot de passe n'est affiché qu'une seule fois. Transmettez-le à l'utilisateur : il devra le changer à sa prochaine connexion."
+          onClose={() => setCredentials(null)}
+        />
+      )}
     </div>
   )
 }
