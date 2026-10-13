@@ -223,6 +223,13 @@ class ApiClient {
     return this.request<any>(`/admin/users/${id}`, { method: 'DELETE' });
   }
 
+  async resetUserPassword(id: string, password?: string) {
+    return this.request<any>(`/admin/users/${id}/reset-password`, {
+      method: 'POST',
+      body: JSON.stringify(password ? { password } : {}),
+    });
+  }
+
   async toggleUserStatus(id: string) {
     return this.request<any>(`/admin/users/${id}/toggle-status`, { method: 'PATCH' });
   }

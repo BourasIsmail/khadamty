@@ -2,6 +2,7 @@ package com.employeehub.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -13,13 +14,22 @@ public class MailService {
 
     private final JavaMailSender mailSender;
 
+    @Value("${spring.mail.username:}")
+    private String mailUsername;
+
     public MailService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
 
-    // Envoyer un email de bienvenue avec les identifiants
-    public void sendWelcomeEmail(String to, String firstName, String lastName,
+    /** Vrai si l'envoi d'emails est configuré (MAIL_USERNAME / MAIL_PASSWORD). */
+    public boolean isConfigured() {
+        return mailUsername != null && !mailUsername.isBlank();
+    }
+
+    /** Envoie l'email de bienvenue ; renvoie vrai seulement si le message est parti. */
+    public boolean sendWelcomeEmail(String to, String firstName, String lastName,
                                  String employeeId, String password, String role) {
+        if (!isConfigured()) return false;
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setTo(to);
@@ -45,9 +55,11 @@ public class MailService {
             );
             mailSender.send(message);
             log.info("Email de bienvenue envoyé à {}", to);
+            return true;
         } catch (Exception e) {
             // Ne bloque pas la création du compte ; le mot de passe n'est jamais écrit dans les logs.
             log.error("Email de bienvenue non envoyé à {} : {}", to, e.getMessage());
+            return false;
         }
     }
 }

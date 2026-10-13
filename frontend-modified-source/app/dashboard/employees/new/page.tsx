@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import toast from 'react-hot-toast'
-import { ArrowLeftIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+import { generatePassword } from '@/lib/password'
+import CredentialsDialog from '../../_components/CredentialsDialog'
 
 // ── Définis EN DEHORS du composant pour éviter le re-render à chaque frappe ──
 const inputCls = 'w-full px-4 py-2.5 rounded-xl border-2 border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600/20 focus:border-primary-600 transition bg-gray-50 focus:bg-white'
@@ -20,6 +22,9 @@ export default function NewEmployeePage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [structures, setStructures] = useState<any[]>([])
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [created, setCreated] = useState<{ email: string; matricule: string; password: string | null; message: string; emailSent: boolean } | null>(null)
   const [form, setForm] = useState({
     employee_id: generateEmployeeCode(), first_name: '', last_name: '', email: '', phone: '',
     position: '', department: '', structure_id: '', salary: '', hire_date: '',
@@ -40,7 +45,7 @@ export default function NewEmployeePage() {
     e.preventDefault()
     setLoading(true)
     try {
-      await api.createEmployee({
+      const res = await api.createEmployee({
         employee_id:  form.employee_id,
         first_name:   form.first_name,
         last_name:    form.last_name,
@@ -56,9 +61,17 @@ export default function NewEmployeePage() {
         ec_phone:     form.ec_phone,
         create_user_account: true,
         user_role: form.user_role,
+        ...(password.trim() ? { password: password.trim() } : {}),
       })
-      toast.success('Employé créé. Le mot de passe temporaire a été envoyé par email.')
-      router.push('/dashboard/employees')
+      // Mot de passe à communiquer : celui saisi, sinon celui généré par le serveur (montré une seule fois)
+      const shown = res.temporaryPassword || (res.accountCreated && password.trim() ? password.trim() : null)
+      setCreated({
+        email: form.email,
+        matricule: form.employee_id,
+        password: shown,
+        message: res.message || 'Employé créé',
+        emailSent: !!res.emailSent,
+      })
     } catch (err: any) {
       toast.error(err.message || 'Erreur lors de la création')
     } finally {
@@ -224,7 +237,7 @@ export default function NewEmployeePage() {
         {/* Compte utilisateur — OBLIGATOIRE */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <h2 className="text-base font-semibold text-gray-900 mb-1">Compte de connexion</h2>
-          <p className="text-sm text-gray-400 mb-4">Le backend génère un mot de passe temporaire et l'envoie automatiquement par email.</p>
+          <p className="text-sm text-gray-400 mb-4">Définissez le mot de passe initial, ou laissez le champ vide pour en générer un automatiquement.</p>
           
           <div className="space-y-4">
             <div>
@@ -239,6 +252,30 @@ export default function NewEmployeePage() {
                 {form.user_role === 'employee' 
                   ? '👤 Employé : peut consulter son profil, demander des congés et attestations'
                   : '👔 RH : peut gérer les employés, valider les demandes et consulter les statistiques'}
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Mot de passe initial</label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <input type={showPassword ? 'text' : 'password'} value={password}
+                    onChange={e => setPassword(e.target.value)} minLength={8}
+                    autoComplete="new-password" className={inputCls + ' pr-10'}
+                    placeholder="8 caractères minimum — vide = généré automatiquement" />
+                  <button type="button" onClick={() => setShowPassword(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    aria-label={showPassword ? 'Masquer' : 'Afficher'}>
+                    {showPassword ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                  </button>
+                </div>
+                <button type="button" onClick={() => { setPassword(generatePassword()); setShowPassword(true) }}
+                  className="px-3 py-2.5 rounded-xl border-2 border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50">
+                  Générer
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5">
+                Le mot de passe vous sera affiché après la création pour le transmettre à l'employé.
               </p>
             </div>
 
@@ -266,6 +303,21 @@ export default function NewEmployeePage() {
         </div>
 
       </form>
+
+      {created && (
+        <CredentialsDialog
+          title="Employé créé"
+          rows={[
+            { label: 'Matricule', value: created.matricule },
+            { label: 'Email de connexion', value: created.email },
+            ...(created.password ? [{ label: 'Mot de passe temporaire', value: created.password, secret: true }] : []),
+          ]}
+          note={created.password
+            ? `${created.message} Ce mot de passe n'est affiché qu'une seule fois : transmettez-le à l'employé, qui devra le changer à sa première connexion.`
+            : created.message}
+          onClose={() => router.push('/dashboard/employees')}
+        />
+      )}
     </div>
   )
 }
