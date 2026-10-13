@@ -5,6 +5,7 @@ import { api } from '@/lib/api'
 import toast from 'react-hot-toast'
 import { XMarkIcon, ArrowUpTrayIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline'
 import { GAINS, RETENUES, AMOUNT_KEYS, AmountKey, emptyAmounts, num, fmt, toField } from './BulletinForm'
+import { buildCsv, buildXlsx, mapTable, parseCsv, readXlsx, TemplateRow } from '@/lib/bulletinSheet'
 
 interface Row {
   emp: any
@@ -27,22 +28,6 @@ const FIELDS = [...GAINS, ...RETENUES]
 
 const netOf = (amounts: Record<AmountKey, string>) =>
   GAINS.reduce((s, f) => s + num(amounts[f.key]), 0) - RETENUES.reduce((s, f) => s + num(amounts[f.key]), 0)
-
-// Découpe une ligne CSV (séparateur ; ou ,) en gérant les guillemets
-function splitCsvLine(line: string, sep: string): string[] {
-  const out: string[] = []
-  let cur = ''
-  let quoted = false
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i]
-    if (c === '"') {
-      if (quoted && line[i + 1] === '"') { cur += '"'; i++ } else quoted = !quoted
-    } else if (c === sep && !quoted) { out.push(cur); cur = '' }
-    else cur += c
-  }
-  out.push(cur)
-  return out.map((v) => v.trim())
-}
 
 export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSaved }: Props) {
   const [mois, setMois] = useState(defaultMois)
@@ -114,54 +99,68 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
   const setAll = (value: boolean) =>
     setRows((prev) => prev.map((r) => (r.exists ? r : { ...r, include: value })))
 
-  // ── CSV ───────────────────────────────────────────────────────────────────
-  const downloadTemplate = () => {
-    const header = ['matricule', 'nom', 'echelon', ...AMOUNT_KEYS]
-    const lines = [header.join(';')]
-    for (const r of rows) {
-      lines.push([
-        r.emp.employeeId, `${r.emp.lastName} ${r.emp.firstName}`.replace(/;/g, ' '), r.echelon,
-        ...AMOUNT_KEYS.map((k) => r.amounts[k]),
-      ].join(';'))
-    }
-    const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' })
+  // ── Modèle et import (Excel ou CSV) ───────────────────────────────────────
+  const periodLabel = `${new Date(2000, mois - 1).toLocaleDateString('fr-FR', { month: 'long' })} ${annee}`
+  const fileBase = `bulletins-${annee}-${String(mois).padStart(2, '0')}`
+
+  const templateRows = (): TemplateRow[] =>
+    rows.filter((r) => !r.exists).map((r) => ({
+      matricule: r.emp.employeeId,
+      nom: `${r.emp.lastName} ${r.emp.firstName}`,
+      echelon: r.echelon,
+      amounts: r.amounts,
+    }))
+
+  const saveBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `bulletins-${annee}-${String(mois).padStart(2, '0')}.csv`
+    a.download = filename
+    document.body.appendChild(a)
     a.click()
+    a.remove()
     URL.revokeObjectURL(url)
   }
 
-  const importCsv = async (file: File) => {
-    const text = (await file.text()).replace(/^﻿/, '')
-    const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '')
-    if (lines.length < 2) return toast.error('Fichier vide')
-    const sep = (lines[0].match(/;/g)?.length ?? 0) >= (lines[0].match(/,/g)?.length ?? 0) ? ';' : ','
-    const header = splitCsvLine(lines[0], sep).map((h) => h.toLowerCase())
-    const col = (name: string) => header.indexOf(name.toLowerCase())
-    const iMat = col('matricule')
-    if (iMat < 0) return toast.error('Colonne « matricule » introuvable')
-    const iEch = col('echelon')
-    const iAmounts = AMOUNT_KEYS.map((k) => ({ k, i: col(k) }))
-
-    const byMat = new Map(rows.map((r) => [r.emp.employeeId, r.emp.id]))
-    const updates = new Map<any, Partial<Row>>()
-    let unknown = 0
-    let skipped = 0
-    for (const line of lines.slice(1)) {
-      const cells = splitCsvLine(line, sep)
-      const id = byMat.get(cells[iMat])
-      if (id === undefined) { unknown++; continue }
-      if (rows.find((r) => r.emp.id === id)?.exists) { skipped++; continue }
-      const amounts = emptyAmounts()
-      for (const { k, i } of iAmounts) if (i >= 0) amounts[k] = (cells[i] || '').replace(/\s/g, '').replace(',', '.')
-      updates.set(id, { amounts, echelon: iEch >= 0 ? cells[iEch] || '' : '', include: true })
+  const downloadXlsx = async () => {
+    try {
+      const buffer = await buildXlsx(FIELDS, templateRows(), periodLabel, RETENUES.map((f) => f.key))
+      saveBlob(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${fileBase}.xlsx`)
+    } catch (e: any) {
+      toast.error(e.message || 'Impossible de générer le modèle Excel')
     }
-    setRows((prev) => prev.map((r) => (updates.has(r.emp.id) ? { ...r, ...updates.get(r.emp.id), error: undefined } : r)))
-    toast.success(`${updates.size} ligne(s) importée(s)`)
-    if (unknown) toast.error(`${unknown} matricule(s) inconnu(s) ignoré(s)`)
-    if (skipped) toast(`${skipped} employé(s) déjà saisi(s) ignoré(s)`)
+  }
+
+  const downloadCsv = () =>
+    saveBlob(new Blob([buildCsv(FIELDS, templateRows())], { type: 'text/csv;charset=utf-8' }), `${fileBase}.csv`)
+
+  const importFile = async (file: File) => {
+    try {
+      const isExcel = /\.xlsx$/i.test(file.name)
+      if (/\.xls$/i.test(file.name)) throw new Error('Ancien format .xls non pris en charge : enregistrez le fichier en .xlsx')
+      const table = isExcel ? await readXlsx(await file.arrayBuffer()) : parseCsv(await file.text())
+      const { entries, unknownColumns } = mapTable(table, FIELDS)
+
+      const byMat = new Map(rows.map((r) => [r.emp.employeeId, r]))
+      const updates = new Map<any, Partial<Row>>()
+      let unknown = 0
+      let skipped = 0
+      for (const entry of entries) {
+        const row = byMat.get(entry.matricule)
+        if (!row) { unknown++; continue }
+        if (row.exists) { skipped++; continue }
+        const amounts = emptyAmounts()
+        for (const k of AMOUNT_KEYS) amounts[k] = entry.amounts[k] ?? ''
+        updates.set(row.emp.id, { amounts, echelon: entry.echelon, include: true })
+      }
+      setRows((prev) => prev.map((r) => (updates.has(r.emp.id) ? { ...r, ...updates.get(r.emp.id), error: undefined } : r)))
+      toast.success(`${updates.size} ligne(s) importée(s)`)
+      if (unknown) toast.error(`${unknown} matricule(s) inconnu(s) ignoré(s)`)
+      if (skipped) toast(`${skipped} employé(s) déjà saisi(s) ignoré(s)`)
+      if (unknownColumns.length) toast(`Colonnes ignorées : ${unknownColumns.join(', ')}`)
+    } catch (e: any) {
+      toast.error(e.message || 'Fichier illisible')
+    }
   }
 
   // ── Envoi ─────────────────────────────────────────────────────────────────
@@ -236,14 +235,17 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
           <button type="button" onClick={() => setAll(true)} className="px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white hover:bg-gray-50">Tout sélectionner</button>
           <button type="button" onClick={() => setAll(false)} className="px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white hover:bg-gray-50">Aucun</button>
           <div className="flex-1" />
-          <button type="button" onClick={downloadTemplate} className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white hover:bg-gray-50">
+          <button type="button" onClick={downloadXlsx} className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-xl border border-green-200 bg-green-50 text-green-800 hover:bg-green-100">
+            <ArrowDownTrayIcon className="h-4 w-4" /> Modèle Excel
+          </button>
+          <button type="button" onClick={downloadCsv} className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white hover:bg-gray-50">
             <ArrowDownTrayIcon className="h-4 w-4" /> Modèle CSV
           </button>
           <button type="button" onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white hover:bg-gray-50">
-            <ArrowUpTrayIcon className="h-4 w-4" /> Importer un CSV
+            <ArrowUpTrayIcon className="h-4 w-4" /> Importer un fichier
           </button>
-          <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) importCsv(f); e.target.value = '' }} />
+          <input ref={fileRef} type="file" accept=".xlsx,.csv,text/csv" className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) importFile(f); e.target.value = '' }} />
         </div>
 
         {summary && (
