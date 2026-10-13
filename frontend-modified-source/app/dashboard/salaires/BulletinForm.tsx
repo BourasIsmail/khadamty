@@ -8,7 +8,7 @@ import { XMarkIcon } from '@heroicons/react/24/outline'
 const inputCls = 'w-full px-3 py-2 rounded-xl border-2 border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-600 transition bg-gray-50 focus:bg-white'
 const labelCls = 'block text-xs font-semibold text-gray-600 mb-1'
 
-const GAINS = [
+export const GAINS = [
   { key: 'salaireBase', label: 'Salaire de base *' },
   { key: 'indemniteLogement', label: 'Indemnité de logement' },
   { key: 'indemniteTransport', label: 'Indemnité de transport' },
@@ -18,7 +18,7 @@ const GAINS = [
   { key: 'rappel', label: 'Rappel' },
 ] as const
 
-const RETENUES = [
+export const RETENUES = [
   { key: 'retenueRetraite', label: 'Retraite' },
   { key: 'retenueAmo', label: 'Assurance maladie (AMO)' },
   { key: 'retenueMutuelle', label: 'Mutuelle' },
@@ -26,21 +26,21 @@ const RETENUES = [
   { key: 'autresRetenues', label: 'Autres retenues' },
 ] as const
 
-type AmountKey = typeof GAINS[number]['key'] | typeof RETENUES[number]['key']
-const AMOUNT_KEYS: AmountKey[] = [...GAINS, ...RETENUES].map((f) => f.key)
+export type AmountKey = typeof GAINS[number]['key'] | typeof RETENUES[number]['key']
+export const AMOUNT_KEYS: AmountKey[] = [...GAINS, ...RETENUES].map((f) => f.key)
 
-const emptyAmounts = () =>
+export const emptyAmounts = () =>
   Object.fromEntries(AMOUNT_KEYS.map((k) => [k, ''])) as Record<AmountKey, string>
 
-const num = (v: string) => {
+export const num = (v: string) => {
   const n = parseFloat((v || '').replace(',', '.'))
   return Number.isFinite(n) ? n : 0
 }
 
-const fmt = (n: number) =>
+export const fmt = (n: number) =>
   new Intl.NumberFormat('fr-MA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 
-const toField = (v: any) => (v === null || v === undefined || Number(v) === 0 ? '' : String(v))
+export const toField = (v: any) => (v === null || v === undefined || Number(v) === 0 ? '' : String(v))
 
 interface Props {
   initial: any | null

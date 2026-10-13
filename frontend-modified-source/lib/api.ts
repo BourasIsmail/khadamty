@@ -392,6 +392,10 @@ class ApiClient {
     return this.request<any>('/salaires', { method: 'POST', body: JSON.stringify(data) });
   }
 
+  async createSalairesBulk(list: any[]) {
+    return this.request<any>('/salaires/bulk', { method: 'POST', body: JSON.stringify(list) });
+  }
+
   async updateSalaire(id: string, data: any) {
     return this.request<any>(`/salaires/${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }

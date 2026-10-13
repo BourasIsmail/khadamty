@@ -6,9 +6,10 @@ import { useAuthStore } from '@/lib/store'
 import toast from 'react-hot-toast'
 import {
   MagnifyingGlassIcon, BanknotesIcon, CalendarIcon,
-  DocumentTextIcon, ArrowDownTrayIcon, PlusIcon, PencilSquareIcon, TrashIcon,
+  DocumentTextIcon, ArrowDownTrayIcon, PlusIcon, PencilSquareIcon, TrashIcon, TableCellsIcon,
 } from '@heroicons/react/24/outline'
 import BulletinForm from './BulletinForm'
+import BulkBulletins from './BulkBulletins'
 
 export default function SalairesPage() {
   const { user } = useAuthStore()
@@ -20,6 +21,7 @@ export default function SalairesPage() {
   const [mois, setMois] = useState('')
   const [annee, setAnnee] = useState(new Date().getFullYear().toString())
   const [showForm, setShowForm] = useState(false)
+  const [showBulk, setShowBulk] = useState(false)
   const [editing, setEditing] = useState<any>(null)
 
   const formatMoney = (value: any) =>
@@ -297,13 +299,22 @@ export default function SalairesPage() {
           <p className="text-gray-500 mt-1">{filteredSalaires.length} bulletin{filteredSalaires.length !== 1 ? 's' : ''}</p>
         </div>
         {isAdmin && (
-          <button
-            onClick={() => { setEditing(null); setShowForm(true) }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition shadow-lg shadow-green-500/25"
-          >
-            <PlusIcon className="h-4 w-4" />
-            Nouveau bulletin
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setShowBulk(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white hover:bg-green-50 text-green-700 text-sm font-semibold rounded-xl border border-green-200 transition"
+            >
+              <TableCellsIcon className="h-4 w-4" />
+              Saisie en masse
+            </button>
+            <button
+              onClick={() => { setEditing(null); setShowForm(true) }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-xl transition shadow-lg shadow-green-500/25"
+            >
+              <PlusIcon className="h-4 w-4" />
+              Nouveau bulletin
+            </button>
+          </div>
         )}
       </div>
 
@@ -467,6 +478,15 @@ export default function SalairesPage() {
           </div>
         )}
       </div>
+
+      {showBulk && (
+        <BulkBulletins
+          defaultMois={mois ? parseInt(mois, 10) : new Date().getMonth() + 1}
+          defaultAnnee={annee ? parseInt(annee, 10) : new Date().getFullYear()}
+          onClose={() => setShowBulk(false)}
+          onSaved={() => { setShowBulk(false); load() }}
+        />
+      )}
 
       {showForm && (
         <BulletinForm
