@@ -11,7 +11,7 @@ import {
   CogIcon, UserCircleIcon, ArrowRightStartOnRectangleIcon,
   Bars3Icon, XMarkIcon, BellIcon, CalendarDaysIcon,
   DocumentTextIcon, BriefcaseIcon, CameraIcon,
-  CheckCircleIcon, ClockIcon as ClockOutline, BanknotesIcon,
+  CheckCircleIcon, ClockIcon as ClockOutline, BanknotesIcon, CreditCardIcon,
 } from '@heroicons/react/24/outline'
 import {
   HomeIcon as HomeSolid, UserGroupIcon as UserGroupSolid,
@@ -27,6 +27,7 @@ const navItems = [
   { name: 'Employés',         href: '/dashboard/employees',         icon: UserGroupIcon,     activeIcon: UserGroupSolid,  roles: ['ADMIN','RH'] },
   { name: 'Structures',       href: '/dashboard/structures',        icon: BriefcaseIcon,     activeIcon: BriefcaseSolid,  roles: ['ADMIN','RH'] },
   { name: 'Salaires',         href: '/dashboard/salaires',          icon: BanknotesIcon,     activeIcon: BanknotesIcon,   roles: ['ADMIN','RH','EMPLOYEE'] },
+  { name: 'Mes engagements',  href: '/dashboard/engagements',       icon: CreditCardIcon,    activeIcon: CreditCardIcon,  roles: ['EMPLOYEE'] },
   { name: 'Ordres Mission',   href: '/dashboard/ordres-mission',    icon: DocumentTextIcon,  activeIcon: DocumentSolid,   roles: ['ADMIN','RH','EMPLOYEE'] },
   { name: 'Demandes',         href: '/dashboard/demandes',          icon: CalendarDaysIcon,  activeIcon: CalendarSolid,   roles: ['ADMIN','RH'] },
   { name: 'Documents',        href: '/dashboard/documents',         icon: DocumentTextIcon,  activeIcon: DocumentSolid,   roles: ['ADMIN','RH','EMPLOYEE'] },

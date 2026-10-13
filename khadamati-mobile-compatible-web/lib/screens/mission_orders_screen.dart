@@ -44,14 +44,14 @@ class _MissionOrdersScreenState extends State<MissionOrdersScreen> {
     final employeesData = await ApiService.getEmployees(page: 1, limit: 100);
     final employees = (employeesData['employees'] as List?) ?? [];
     if (!mounted || employees.isEmpty) {
-      _snack('Aucun employÃ© disponible', danger: true);
+      _snack('Aucun employé disponible', danger: true);
       return;
     }
 
     String? employeeId = '${employees.first['id']}';
     final objetCtrl = TextEditingController(text: 'Mission administrative');
-    final departCtrl = TextEditingController(text: 'Direction GÃ©nÃ©rale');
-    final destinationCtrl = TextEditingController(text: 'DÃ©lÃ©gation provinciale');
+    final departCtrl = TextEditingController(text: 'Direction Générale');
+    final destinationCtrl = TextEditingController(text: 'Délégation provinciale');
     final amountCtrl = TextEditingController(text: '420');
 
     final ok = await showModalBottomSheet<bool>(
@@ -67,7 +67,7 @@ class _MissionOrdersScreenState extends State<MissionOrdersScreen> {
             const SizedBox(height: 14),
             DropdownButtonFormField<String>(
               value: employeeId,
-              decoration: const InputDecoration(labelText: 'EmployÃ© destinataire'),
+              decoration: const InputDecoration(labelText: 'Employé destinataire'),
               items: employees.map<DropdownMenuItem<String>>((e) {
                 return DropdownMenuItem(value: '${e['id']}', child: Text('${e['firstName']} ${e['lastName']}'));
               }).toList(),
@@ -76,7 +76,7 @@ class _MissionOrdersScreenState extends State<MissionOrdersScreen> {
             const SizedBox(height: 10),
             TextField(controller: objetCtrl, decoration: const InputDecoration(labelText: 'Objet')),
             const SizedBox(height: 10),
-            TextField(controller: departCtrl, decoration: const InputDecoration(labelText: 'DÃ©part')),
+            TextField(controller: departCtrl, decoration: const InputDecoration(labelText: 'Départ')),
             const SizedBox(height: 10),
             TextField(controller: destinationCtrl, decoration: const InputDecoration(labelText: 'Destination')),
             const SizedBox(height: 10),
@@ -84,7 +84,7 @@ class _MissionOrdersScreenState extends State<MissionOrdersScreen> {
             const SizedBox(height: 16),
             SizedBox(width: double.infinity, child: ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Envoyer Ã  lâ€™employÃ©'),
+              child: const Text('Envoyer à l’employé'),
             )),
           ]),
         );
@@ -109,21 +109,21 @@ class _MissionOrdersScreenState extends State<MissionOrdersScreen> {
       'montantTotal': double.tryParse(amountCtrl.text) ?? 0,
       'statut': 'EN_ATTENTE',
     });
-    _snack('Ordre envoyÃ© Ã  lâ€™employÃ©');
+    _snack('Ordre envoyé à l’employé');
     await _load();
   }
 
   Future<void> _approve(String id) async {
     final user = context.read<AuthProvider>().user!;
     await ApiService.approveMissionOrder(id, user.email);
-    _snack('Ordre approuvÃ©');
+    _snack('Ordre approuvé');
     await _load();
   }
 
   Future<void> _reject(String id) async {
     final user = context.read<AuthProvider>().user!;
-    await ApiService.rejectMissionOrder(id, user.email, 'RejetÃ© depuis mobile');
-    _snack('Ordre rejetÃ©');
+    await ApiService.rejectMissionOrder(id, user.email, 'Rejeté depuis mobile');
+    _snack('Ordre rejeté');
     await _load();
   }
 
@@ -156,7 +156,7 @@ class _MissionOrdersScreenState extends State<MissionOrdersScreen> {
             Text(user.isEmployee ? 'Mes missions' : 'Ordres de mission',
                 style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.gray900)),
             const SizedBox(height: 4),
-            Text(user.isEmployee ? 'Missions envoyÃ©es par lâ€™administration' : 'CrÃ©er, suivre et valider les missions',
+            Text(user.isEmployee ? 'Missions envoyées par l’administration' : 'Créer, suivre et valider les missions',
                 style: const TextStyle(color: AppColors.gray500)),
             const SizedBox(height: 14),
             SizedBox(
@@ -259,7 +259,7 @@ class _MissionOrdersScreenState extends State<MissionOrdersScreen> {
     child: const Column(children: [
       Icon(Icons.route_outlined, size: 44, color: AppColors.gray400),
       SizedBox(height: 10),
-      Text('Aucun ordre de mission trouvÃ©', style: TextStyle(color: AppColors.gray500, fontWeight: FontWeight.w700)),
+      Text('Aucun ordre de mission trouvé', style: TextStyle(color: AppColors.gray500, fontWeight: FontWeight.w700)),
     ]),
   );
 }

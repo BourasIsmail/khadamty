@@ -49,7 +49,7 @@ class _RhTabState extends State<RhTab> with SingleTickerProviderStateMixin {
     try {
       await ApiService.approveLeaveRequest(id);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Demande approuvÃ©e âœ“'), backgroundColor: AppColors.primary));
+        const SnackBar(content: Text('Demande approuvée ✓'), backgroundColor: AppColors.primary));
       await _load();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -64,7 +64,7 @@ class _RhTabState extends State<RhTab> with SingleTickerProviderStateMixin {
     try {
       await ApiService.rejectLeaveRequest(id, reason);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Demande rejetÃ©e'), backgroundColor: AppColors.danger));
+        const SnackBar(content: Text('Demande rejetée'), backgroundColor: AppColors.danger));
       await _load();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
@@ -97,11 +97,11 @@ class _RhTabState extends State<RhTab> with SingleTickerProviderStateMixin {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                _miniStat('CongÃ©s en attente', '${_stats!['pendingLeave'] ?? 0}', AppColors.danger),
+                _miniStat('Congés en attente', '${_stats!['pendingLeave'] ?? 0}', AppColors.danger),
                 const SizedBox(width: 10),
                 _miniStat('Docs en attente', '${_stats!['pendingDocs'] ?? 0}', AppColors.primary),
                 const SizedBox(width: 10),
-                _miniStat('ApprouvÃ©s', '${_stats!['approvedLeave'] ?? 0}', AppColors.primaryLight),
+                _miniStat('Approuvés', '${_stats!['approvedLeave'] ?? 0}', AppColors.primaryLight),
               ],
             ),
           ),
@@ -115,7 +115,7 @@ class _RhTabState extends State<RhTab> with SingleTickerProviderStateMixin {
             unselectedLabelColor: AppColors.gray400,
             indicatorColor: AppColors.primary,
             tabs: [
-              Tab(text: 'CongÃ©s (${_leaveRequests.where((r) => r['status'] == 'PENDING').length})'),
+              Tab(text: 'Congés (${_leaveRequests.where((r) => r['status'] == 'PENDING').length})'),
               Tab(text: 'Attestations (${_docRequests.where((r) => r['status'] == 'PENDING').length})'),
               Tab(text: 'Calendrier (${_calendarEvents.length})'),
             ],
@@ -179,7 +179,7 @@ class _RhTabState extends State<RhTab> with SingleTickerProviderStateMixin {
                 const SizedBox(height: 4),
                 Text(_leaveTypeLabel(r['leaveType'] ?? ''),
                   style: const TextStyle(fontSize: 12, color: AppColors.gray500)),
-                Text('${r['startDate'] ?? ''} â†’ ${r['endDate'] ?? ''} Â· ${r['daysRequested'] ?? 0}j',
+                Text('${r['startDate'] ?? ''} → ${r['endDate'] ?? ''} · ${r['daysRequested'] ?? 0}j',
                   style: const TextStyle(fontSize: 12, color: AppColors.gray400)),
                 if (isPending) ...[
                   const SizedBox(height: 10),
@@ -304,12 +304,12 @@ class _RhTabState extends State<RhTab> with SingleTickerProviderStateMixin {
     );
   }
   String _leaveTypeLabel(String t) => switch (t) {
-    'ANNUAL_LEAVE'    => 'CongÃ© annuel',
-    'SICK_LEAVE'      => 'CongÃ© maladie',
-    'PERSONAL_LEAVE'  => 'CongÃ© personnel',
-    'MATERNITY_LEAVE' => 'CongÃ© maternitÃ©',
-    'PATERNITY_LEAVE' => 'CongÃ© paternitÃ©',
-    'EMERGENCY_LEAVE' => "CongÃ© d'urgence",
+    'ANNUAL_LEAVE'    => 'Congé annuel',
+    'SICK_LEAVE'      => 'Congé maladie',
+    'PERSONAL_LEAVE'  => 'Congé personnel',
+    'MATERNITY_LEAVE' => 'Congé maternité',
+    'PATERNITY_LEAVE' => 'Congé paternité',
+    'EMERGENCY_LEAVE' => "Congé d'urgence",
     _ => t,
   };
 
@@ -317,9 +317,9 @@ class _RhTabState extends State<RhTab> with SingleTickerProviderStateMixin {
     'WORK_CERTIFICATE'      => 'Attestation de travail',
     'SALARY_CERTIFICATE'    => 'Attestation de salaire',
     'EMPLOYMENT_CONTRACT'   => 'Contrat de travail',
-    'LEAVE_BALANCE'         => 'Solde de congÃ©s',
+    'LEAVE_BALANCE'         => 'Solde de congés',
     'TAX_CERTIFICATE'       => 'Certificat fiscal',
-    'EXPERIENCE_CERTIFICATE'=> "Certificat d'expÃ©rience",
+    'EXPERIENCE_CERTIFICATE'=> "Certificat d'expérience",
     _ => t,
   };
 }

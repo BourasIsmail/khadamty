@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import toast from 'react-hot-toast'
+import PersonalInfo from '../_components/PersonalInfo'
 import { UserCircleIcon, KeyIcon, CheckIcon, BuildingOfficeIcon, BriefcaseIcon } from '@heroicons/react/24/outline'
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuthStore()
   const [empProfile, setEmpProfile] = useState<any>(null)
+  const [bulletin, setBulletin] = useState<any>(null)
   const [loading, setLoading]       = useState(true)
   const [saving, setSaving]         = useState(false)
   const [changingPwd, setChangingPwd] = useState(false)
@@ -24,6 +26,7 @@ export default function ProfilePage() {
         // Charger le profil employé si rôle EMPLOYEE
         if (user?.role === 'EMPLOYEE') {
           const data = await api.getEmployeeProfile() as any
+          api.getMyLatestPaySlip().then((r: any) => setBulletin(r?.bulletin ?? null)).catch(() => {})
           setEmpProfile(data)
         }
       } catch (e) {
@@ -146,23 +149,9 @@ export default function ProfilePage() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-card p-6">
           <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <BriefcaseIcon className="h-5 w-5 text-primary-600" />
-            Informations professionnelles
+            Mes informations personnelles
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            {[
-              { label: 'ID Employé',    value: empProfile.employeeId },
-              { label: 'Poste',         value: empProfile.position },
-              { label: 'Département',   value: empProfile.department },
-              { label: 'Téléphone',     value: empProfile.phone },
-              { label: "Date d'embauche", value: empProfile.hireDate ? new Date(empProfile.hireDate).toLocaleDateString('fr-FR') : '—' },
-              { label: 'Statut',        value: empProfile.status === 'active' ? 'Actif' : 'Inactif' },
-            ].map((item) => (
-              <div key={item.label} className="bg-gray-50 rounded-xl p-3">
-                <p className="text-xs text-gray-400 font-medium">{item.label}</p>
-                <p className="font-semibold text-gray-900 mt-0.5">{item.value || '—'}</p>
-              </div>
-            ))}
-          </div>
+          <PersonalInfo profile={empProfile} bulletin={bulletin} />
         </div>
       )}
 

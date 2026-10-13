@@ -6,6 +6,7 @@ import com.employeehub.dto.LeaveRequestDto;
 import com.employeehub.model.*;
 import com.employeehub.repository.*;
 import com.employeehub.service.PasswordGeneratorService;
+import com.employeehub.service.EngagementService;
 import com.employeehub.service.MailService;
 import com.employeehub.service.PdfGenerationService;
 import jakarta.validation.Valid;
@@ -41,6 +42,7 @@ public class EmployeeController {
     private final PasswordGeneratorService passwordGeneratorService;
     private final PdfGenerationService pdfGenerationService;
     private final MailService mailService;
+    private final EngagementService engagementService;
 
     public EmployeeController(EmployeeRepository employeeRepository, UserRepository userRepository,
                              LeaveRequestRepository leaveRequestRepository, 
@@ -51,7 +53,8 @@ public class EmployeeController {
                              PasswordEncoder passwordEncoder, JwtUtil jwtUtil,
                              PasswordGeneratorService passwordGeneratorService,
                              PdfGenerationService pdfGenerationService,
-                             MailService mailService) {
+                             MailService mailService,
+                             EngagementService engagementService) {
         this.employeeRepository = employeeRepository;
         this.userRepository = userRepository;
         this.leaveRequestRepository = leaveRequestRepository;
@@ -64,6 +67,7 @@ public class EmployeeController {
         this.passwordGeneratorService = passwordGeneratorService;
         this.pdfGenerationService = pdfGenerationService;
         this.mailService = mailService;
+        this.engagementService = engagementService;
     }
 
     // ==================== ENDPOINTS EMPLOYEE (rôle EMPLOYEE) ====================
@@ -301,6 +305,46 @@ public class EmployeeController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
         }
+    }
+
+    /** Bulletin du mois en cours ; à défaut, le plus récent (courant = false). bulletin est nul s'il n'y en a aucun. */
+    @GetMapping("/pay-slips/latest")
+    public ResponseEntity<?> getMyLatestPaySlip(@RequestHeader("Authorization") String token) {
+        try {
+            Employee employee = employeeFromToken(token);
+            Optional<Salaire> latest = latestPayslip(employee);
+            LocalDate today = LocalDate.now();
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("bulletin", latest.map(this::toPayslip).orElse(null));
+            result.put("courant", latest.map(s -> s.getAnnee() != null && s.getMois() != null
+                    && s.getAnnee() == today.getYear() && s.getMois() == today.getMonthValue()).orElse(false));
+            result.put("periodeCourante", monthLabel((byte) today.getMonthValue()) + " " + today.getYear());
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    /** Mes engagements : crédits enregistrés et prêts/avances prélevés sur le bulletin. */
+    @GetMapping("/engagements")
+    public ResponseEntity<?> getMyEngagements(@RequestHeader("Authorization") String token) {
+        try {
+            Employee employee = employeeFromToken(token);
+            return ResponseEntity.ok(engagementService.forEmployee(employee.getId(), latestPayslip(employee).orElse(null)));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    private Employee employeeFromToken(String token) {
+        String email = jwtUtil.extractUsername(token.substring(7));
+        return employeeRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("Employé introuvable"));
+    }
+
+    private Optional<Salaire> latestPayslip(Employee employee) {
+        return salaireRepository.findByEmployeeId(employee.getId()).stream()
+                .filter(s -> s.getAnnee() != null && s.getMois() != null)
+                .max(Comparator.comparing((Salaire s) -> s.getAnnee() * 12 + s.getMois()));
     }
 
     @GetMapping("/pay-slips/{salaireId}/pdf")

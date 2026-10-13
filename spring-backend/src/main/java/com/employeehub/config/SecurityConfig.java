@@ -54,7 +54,7 @@ public class SecurityConfig {
                     "/employees/leave-request", "/employees/leave-requests",
                     "/employees/document-request", "/employees/document-requests",
                     "/employees/attendances", "/employees/leave-availability",
-                    "/employees/pay-slips", "/employees/pay-slips/**")
+                    "/employees/pay-slips", "/employees/pay-slips/**", "/employees/engagements")
                     .hasAnyRole("ADMIN", "RH", "EMPLOYEE")
                 // Création de comptes (employés) : Admin uniquement
                 .requestMatchers(HttpMethod.POST, "/employees").hasRole("ADMIN")
