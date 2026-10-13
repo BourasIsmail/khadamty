@@ -20,15 +20,6 @@ export const RETENUE_TYPES = [
   'Autres retenues',
 ]
 
-/** Retenues « courantes » proposées en colonnes dans le modèle Excel/CSV de saisie en masse. */
-export const STANDARD_RETENUES = [
-  { key: 'retenueRetraite', type: 'Retraite', label: 'Retraite' },
-  { key: 'retenueAmo', type: 'Assurance maladie (AMO)', label: 'Assurance maladie (AMO)' },
-  { key: 'retenueMutuelle', type: 'Mutuelle', label: 'Mutuelle' },
-  { key: 'retenueIr', type: 'Impôt sur le revenu (IR)', label: 'Impôt sur le revenu (IR)' },
-  { key: 'autresRetenues', type: 'Autres retenues', label: 'Autres retenues' },
-] as const
-
 export const emptyRetenue = (): RetenueForm => ({
   type: '', montant: '', numeroDossier: '', montantTotal: '', montantRestant: '', moisRestants: '',
 })

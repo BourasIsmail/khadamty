@@ -7,10 +7,13 @@ import { XMarkIcon, ArrowUpTrayIcon, ArrowDownTrayIcon } from '@heroicons/react/
 import { GAINS, AMOUNT_KEYS, AmountKey, emptyAmounts, num, fmt, toField } from './BulletinForm'
 import RetenuesEditor from './RetenuesEditor'
 import {
-  RetenueForm, STANDARD_RETENUES, carryOverRetenues, emptyRetenue, retenueFromApi, retenuesError,
+  RetenueForm, carryOverRetenues, emptyRetenue, retenueFromApi, retenuesError,
   retenuesToPayload, retenuesTotal,
 } from '@/lib/retenues'
-import { buildCsv, buildXlsx, mapTable, parseCsv, readXlsx, TemplateRow } from '@/lib/bulletinSheet'
+import {
+  buildCsv, buildRetenuesCsv, buildXlsx, detectKind, mapRetenues, mapTable, parseCsv, readXlsxSheets,
+  RetenueSheetRow, TemplateRow,
+} from '@/lib/bulletinSheet'
 
 interface Row {
   emp: any
@@ -30,14 +33,11 @@ interface Props {
 }
 
 const inputCls = 'w-24 px-2 py-1 rounded-lg border border-gray-200 text-sm text-right focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-600 bg-white disabled:bg-gray-100'
-// Colonnes du modèle Excel/CSV : rémunération + retenues courantes (les prêts se règlent via « Détail »)
-const SHEET_FIELDS = [...GAINS, ...STANDARD_RETENUES.map((r) => ({ key: r.key, label: r.label }))]
+// Feuille « Bulletins » du modèle : la rémunération (les retenues ont leur propre feuille)
+const SHEET_FIELDS = GAINS.map((g) => ({ key: g.key, label: g.label }))
 
 const netOf = (r: { amounts: Record<AmountKey, string>; retenues: RetenueForm[] }) =>
   GAINS.reduce((sum, f) => sum + num(r.amounts[f.key]), 0) - retenuesTotal(r.retenues)
-
-/** Montant de la première ligne d'un type donné (pour remplir une colonne du modèle). */
-const standardAmount = (lines: RetenueForm[], type: string) => toField(lines.find((l) => l.type === type)?.montant)
 
 export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSaved }: Props) {
   const [mois, setMois] = useState(defaultMois)
@@ -117,11 +117,24 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
   const fileBase = `bulletins-${annee}-${String(mois).padStart(2, '0')}`
 
   const templateRows = (): TemplateRow[] =>
-    rows.filter((r) => !r.exists).map((r) => {
-      const amounts: Record<string, string> = { ...r.amounts }
-      for (const st of STANDARD_RETENUES) amounts[st.key] = standardAmount(r.retenues, st.type)
-      return { matricule: r.emp.employeeId, nom: `${r.emp.lastName} ${r.emp.firstName}`, echelon: r.echelon, amounts }
-    })
+    rows.filter((r) => !r.exists).map((r) => ({
+      matricule: r.emp.employeeId,
+      nom: `${r.emp.lastName} ${r.emp.firstName}`,
+      echelon: r.echelon,
+      amounts: r.amounts,
+    }))
+
+  /** Une ligne par retenue ; un employé sans retenue a une ligne vide, prête à remplir. */
+  const retenueSheetRows = (): RetenueSheetRow[] => {
+    const out: RetenueSheetRow[] = []
+    for (const r of rows.filter((x) => !x.exists)) {
+      const base = { matricule: r.emp.employeeId, nom: `${r.emp.lastName} ${r.emp.firstName}` }
+      const lines = r.retenues.length > 0 ? r.retenues : [emptyRetenue()]
+      for (const l of lines) out.push({ ...base, type: l.type, montant: l.montant, numeroDossier: l.numeroDossier,
+        montantTotal: l.montantTotal, montantRestant: l.montantRestant, moisRestants: l.moisRestants })
+    }
+    return out
+  }
 
   const saveBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob)
@@ -136,7 +149,7 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
 
   const downloadXlsx = async () => {
     try {
-      const buffer = await buildXlsx(SHEET_FIELDS, templateRows(), periodLabel, STANDARD_RETENUES.map((f) => f.key))
+      const buffer = await buildXlsx(SHEET_FIELDS, templateRows(), periodLabel, retenueSheetRows())
       saveBlob(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${fileBase}.xlsx`)
     } catch (e: any) {
       toast.error(e.message || 'Impossible de générer le modèle Excel')
@@ -146,40 +159,72 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
   const downloadCsv = () =>
     saveBlob(new Blob([buildCsv(SHEET_FIELDS, templateRows())], { type: 'text/csv;charset=utf-8' }), `${fileBase}.csv`)
 
+  const downloadRetenuesCsv = () =>
+    saveBlob(new Blob([buildRetenuesCsv(retenueSheetRows())], { type: 'text/csv;charset=utf-8' }), `${fileBase}-retenues.csv`)
+
+  /**
+   * Import d'un classeur Excel (feuilles « Bulletins » et « Retenues ») ou d'un CSV
+   * (soit les bulletins, soit les retenues : le type est reconnu à ses colonnes).
+   */
   const importFile = async (file: File) => {
     try {
-      const isExcel = /\.xlsx$/i.test(file.name)
       if (/\.xls$/i.test(file.name)) throw new Error('Ancien format .xls non pris en charge : enregistrez le fichier en .xlsx')
-      const table = isExcel ? await readXlsx(await file.arrayBuffer()) : parseCsv(await file.text())
-      const { entries, unknownColumns } = mapTable(table, SHEET_FIELDS)
+      let bulletinsTable: string[][] | null = null
+      let retenuesTable: string[][] | null = null
+      if (/\.xlsx$/i.test(file.name)) {
+        const sheets = await readXlsxSheets(await file.arrayBuffer())
+        bulletinsTable = sheets.bulletins
+        retenuesTable = sheets.retenues
+      } else {
+        const table = parseCsv(await file.text())
+        if (detectKind(table) === 'retenues') retenuesTable = table
+        else bulletinsTable = table
+      }
 
       const byMat = new Map(rows.map((r) => [r.emp.employeeId, r]))
       const updates = new Map<any, Partial<Row>>()
+      const notes: string[] = []
       let unknown = 0
       let skipped = 0
-      for (const entry of entries) {
-        const row = byMat.get(entry.matricule)
-        if (!row) { unknown++; continue }
-        if (row.exists) { skipped++; continue }
-        const amounts = emptyAmounts()
-        for (const k of AMOUNT_KEYS) amounts[k] = entry.amounts[k] ?? ''
-        // Retenues courantes présentes dans le fichier : elles remplacent les lignes du même type ;
-        // les autres lignes (prêts, avances…) déjà préparées sont conservées.
-        const present = STANDARD_RETENUES.filter((st) => entry.amounts[st.key] !== undefined)
-        const types = new Set<string>(present.map((st) => st.type))
-        const retenues = [
-          ...row.retenues.filter((l) => !types.has(l.type)),
-          ...present
-            .filter((st) => num(entry.amounts[st.key]) > 0)
-            .map((st) => ({ ...emptyRetenue(), type: st.type, montant: entry.amounts[st.key] })),
-        ]
-        updates.set(row.emp.id, { amounts, retenues, echelon: entry.echelon, include: true })
+
+      // 1. Rémunération
+      const seenInBulletins = new Set<string>()
+      if (bulletinsTable) {
+        const { entries, unknownColumns } = mapTable(bulletinsTable, SHEET_FIELDS)
+        for (const entry of entries) {
+          const row = byMat.get(entry.matricule)
+          if (!row) { unknown++; continue }
+          if (row.exists) { skipped++; continue }
+          const amounts = emptyAmounts()
+          for (const k of AMOUNT_KEYS) amounts[k] = entry.amounts[k] ?? ''
+          updates.set(row.emp.id, { amounts, echelon: entry.echelon, include: true })
+          seenInBulletins.add(entry.matricule)
+        }
+        if (unknownColumns.length) notes.push(`Colonnes ignorées : ${unknownColumns.join(', ')}`)
       }
+
+      // 2. Retenues : les lignes du fichier remplacent celles de l'employé concerné
+      let retenueLines = 0
+      if (retenuesTable) {
+        const { byMatricule, ignoredRows } = mapRetenues(retenuesTable)
+        // Avec un classeur complet, un employé de « Bulletins » sans ligne n'a aucune retenue
+        const targets = new Set<string>(Array.from(byMatricule.keys()).concat(bulletinsTable ? Array.from(seenInBulletins) : []))
+        for (const matricule of Array.from(targets)) {
+          const row = byMat.get(matricule)
+          if (!row) { if (byMatricule.has(matricule)) unknown++; continue }
+          if (row.exists) continue
+          const lines: RetenueForm[] = (byMatricule.get(matricule) ?? []).map((l) => ({ ...l }))
+          retenueLines += lines.length
+          updates.set(row.emp.id, { ...(updates.get(row.emp.id) ?? {}), retenues: lines, include: true })
+        }
+        if (ignoredRows) notes.push(`${ignoredRows} ligne(s) de retenue sans type ignorée(s)`)
+      }
+
       setRows((prev) => prev.map((r) => (updates.has(r.emp.id) ? { ...r, ...updates.get(r.emp.id), error: undefined } : r)))
-      toast.success(`${updates.size} ligne(s) importée(s)`)
+      toast.success(`${updates.size} employé(s) importé(s)${retenuesTable ? `, ${retenueLines} ligne(s) de retenue` : ''}`)
       if (unknown) toast.error(`${unknown} matricule(s) inconnu(s) ignoré(s)`)
       if (skipped) toast(`${skipped} employé(s) déjà saisi(s) ignoré(s)`)
-      if (unknownColumns.length) toast(`Colonnes ignorées : ${unknownColumns.join(', ')}`)
+      notes.forEach((n) => toast(n))
     } catch (e: any) {
       toast.error(e.message || 'Fichier illisible')
     }
@@ -262,7 +307,10 @@ export default function BulkBulletins({ defaultMois, defaultAnnee, onClose, onSa
             <ArrowDownTrayIcon className="h-4 w-4" /> Modèle Excel
           </button>
           <button type="button" onClick={downloadCsv} className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white hover:bg-gray-50">
-            <ArrowDownTrayIcon className="h-4 w-4" /> Modèle CSV
+            <ArrowDownTrayIcon className="h-4 w-4" /> CSV bulletins
+          </button>
+          <button type="button" onClick={downloadRetenuesCsv} className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white hover:bg-gray-50">
+            <ArrowDownTrayIcon className="h-4 w-4" /> CSV retenues
           </button>
           <button type="button" onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-2 px-3 py-2 text-sm rounded-xl border border-gray-200 bg-white hover:bg-gray-50">
             <ArrowUpTrayIcon className="h-4 w-4" /> Importer un fichier
