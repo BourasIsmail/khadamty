@@ -248,20 +248,12 @@ class _DashboardTabState extends State<DashboardTab> {
           const SizedBox(height: 20),
         ],
 
-        // Solde congés
+        // Solde d'autorisations
         if (_leaveBalance != null) ...[
-          const Text('Solde de congés',
+          const Text("Solde d'autorisations",
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.gray900)),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _leaveCard('Annuels', _leaveBalance!['annualLeave'] ?? 0, 25, AppColors.primary, Icons.wb_sunny_outlined)),
-              const SizedBox(width: 10),
-              Expanded(child: _leaveCard('Maladie', _leaveBalance!['sickLeave'] ?? 0, 10, AppColors.danger, Icons.favorite_outline)),
-              const SizedBox(width: 10),
-              Expanded(child: _leaveCard('Personnels', _leaveBalance!['personalLeave'] ?? 0, 5, AppColors.primaryLight, Icons.person_outline)),
-            ],
-          ),
+          _leaveCard('Autorisation annuelle', _leaveBalance!['annualLeave'] ?? 0, 22, AppColors.primary, Icons.wb_sunny_outlined),
           const SizedBox(height: 20),
         ],
 
@@ -277,13 +269,13 @@ class _DashboardTabState extends State<DashboardTab> {
           mainAxisSpacing: 10,
           childAspectRatio: 1.6,
           children: [
-            _actionCard('Demander un conge', Icons.calendar_today_outlined, AppColors.primary, () {
+            _actionCard('Demander une autorisation', Icons.calendar_today_outlined, AppColors.primary, () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaveRequestFormScreen()));
             }),
             _actionCard('Demander attestation', Icons.description_outlined, AppColors.danger, () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const DocumentRequestScreen()));
             }),
-            _actionCard('Mes conges', Icons.event_available_outlined, AppColors.primaryLight, () {
+            _actionCard('Mes autorisations', Icons.event_available_outlined, AppColors.primaryLight, () {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const LeaveBalanceScreen()));
             }),
             _actionCard('Mon profil', Icons.person_outline, AppColors.gray500, () {

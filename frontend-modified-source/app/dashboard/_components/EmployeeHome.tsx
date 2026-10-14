@@ -7,7 +7,7 @@ import { useAuthStore } from '@/lib/store'
 import { formatMoney } from '@/lib/format'
 import toast from 'react-hot-toast'
 import {
-  ArrowDownTrayIcon, CalendarDaysIcon, DocumentTextIcon, EyeIcon, EyeSlashIcon, HeartIcon,
+  ArrowDownTrayIcon, CalendarDaysIcon, DocumentTextIcon, EyeIcon, EyeSlashIcon,
   SunIcon, UserIcon,
 } from '@heroicons/react/24/outline'
 import PayslipDetail from './PayslipDetail'
@@ -31,7 +31,7 @@ function Card({ title, action, children }: { title: string; action?: React.React
   )
 }
 
-// Accueil de l'employé : salaire du mois avec détail, engagements et crédits, données personnelles, congés.
+// Accueil de l'employé : salaire du mois avec détail, engagements et crédits, données personnelles, autorisations.
 export default function EmployeeHome() {
   const { user } = useAuthStore()
   const [profile, setProfile] = useState<any>(null)
@@ -165,15 +165,13 @@ export default function EmployeeHome() {
           : <p className="text-sm text-gray-400">Informations indisponibles.</p>}
       </Card>
 
-      {/* Solde de congés */}
+      {/* Solde d'autorisations */}
       {leave && (
         <div>
-          <h2 className="text-base font-semibold text-gray-900 mb-3">Solde de congés</h2>
+          <h2 className="text-base font-semibold text-gray-900 mb-3">Solde d'autorisations</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { label: 'Congés annuels',    value: leave.annualLeave,   icon: SunIcon,   color: 'text-primary-600', bg: 'bg-primary-50', bar: 'bg-primary-600', max: 25 },
-              { label: 'Congés maladie',    value: leave.sickLeave,     icon: HeartIcon, color: 'text-danger-500',  bg: 'bg-red-50',     bar: 'bg-danger-500',  max: 10 },
-              { label: 'Congés personnels', value: leave.personalLeave, icon: UserIcon,  color: 'text-primary-500', bg: 'bg-primary-50', bar: 'bg-primary-500', max: 5 },
+              { label: 'Autorisation annuelle', value: leave.annualLeave, icon: SunIcon, color: 'text-primary-600', bg: 'bg-primary-50', bar: 'bg-primary-600', max: 22 },
             ].map((c) => (
               <div key={c.label} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-card">
                 <div className="flex items-center gap-3 mb-3">
@@ -197,9 +195,9 @@ export default function EmployeeHome() {
       <Card title="Actions rapides">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { href: '/dashboard/leave-request',    icon: CalendarDaysIcon, label: 'Demander un congé',    bg: 'bg-primary-50 hover:bg-primary-100', color: 'text-primary-600' },
+            { href: '/dashboard/leave-request',    icon: CalendarDaysIcon, label: 'Demander une autorisation',    bg: 'bg-primary-50 hover:bg-primary-100', color: 'text-primary-600' },
             { href: '/dashboard/document-request', icon: DocumentTextIcon, label: 'Demander attestation', bg: 'bg-red-50 hover:bg-red-100',         color: 'text-danger-500' },
-            { href: '/dashboard/leave-balance',    icon: SunIcon,          label: 'Mes congés',           bg: 'bg-primary-50 hover:bg-primary-100', color: 'text-primary-600' },
+            { href: '/dashboard/leave-balance',    icon: SunIcon,          label: 'Mes autorisations',           bg: 'bg-primary-50 hover:bg-primary-100', color: 'text-primary-600' },
             { href: '/dashboard/profile',          icon: UserIcon,         label: 'Mon profil',           bg: 'bg-gray-50 hover:bg-gray-100',       color: 'text-gray-600' },
           ].map((a) => (
             <Link key={a.href} href={a.href}

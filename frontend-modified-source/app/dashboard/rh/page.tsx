@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
 import toast from 'react-hot-toast'
+import { AUTHORIZATION_LABELS } from '@/lib/authorizations'
 import {
   CalendarDaysIcon, DocumentTextIcon, CheckCircleIcon,
   XCircleIcon, ClockIcon, UserGroupIcon, ChartBarIcon,
@@ -32,20 +33,13 @@ const overlapsDay = (event: any, day: Date) => {
   return event.startDate <= current && event.endDate >= current
 }
 
-const LEAVE_TYPE_LABELS: Record<string, string> = {
-  ANNUAL_LEAVE: 'Congé annuel',
-  SICK_LEAVE: 'Congé maladie',
-  PERSONAL_LEAVE: 'Congé personnel',
-  MATERNITY_LEAVE: 'Congé maternité',
-  PATERNITY_LEAVE: 'Congé paternité',
-  EMERGENCY_LEAVE: "Congé d'urgence",
-}
+const LEAVE_TYPE_LABELS = AUTHORIZATION_LABELS
 
 const DOC_TYPE_LABELS: Record<string, string> = {
   WORK_CERTIFICATE: 'Attestation de travail',
   SALARY_CERTIFICATE: 'Attestation de salaire',
   EMPLOYMENT_CONTRACT: 'Contrat de travail',
-  LEAVE_BALANCE: 'Solde de congés',
+  LEAVE_BALANCE: "Solde d'autorisations",
   TAX_CERTIFICATE: 'Certificat fiscal',
   EXPERIENCE_CERTIFICATE: "Certificat d'expérience",
 }
@@ -155,8 +149,8 @@ export default function RhDashboardPage() {
 
   const statCards = stats
     ? [
-        { label: 'Congés en attente', value: stats.pendingLeave, icon: CalendarDaysIcon, color: 'yellow' },
-        { label: 'Congés approuvés', value: stats.approvedLeave, icon: CheckCircleIcon, color: 'emerald' },
+        { label: 'Autorisations en attente', value: stats.pendingLeave, icon: CalendarDaysIcon, color: 'yellow' },
+        { label: 'Autorisations approuvées', value: stats.approvedLeave, icon: CheckCircleIcon, color: 'emerald' },
         { label: 'Docs en attente', value: stats.pendingDocs, icon: DocumentTextIcon, color: 'blue' },
         { label: 'Docs traités', value: stats.completedDocs, icon: CheckCircleIcon, color: 'purple' },
       ]
@@ -181,7 +175,7 @@ export default function RhDashboardPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Tableau de bord RH</h1>
-        <p className="text-gray-500 mt-1">Gérez les demandes de congés et d'attestations</p>
+        <p className="text-gray-500 mt-1">Gérez les demandes d'autorisations et d'attestations</p>
       </div>
 
       {/* Stats */}
@@ -216,7 +210,7 @@ export default function RhDashboardPage() {
             }`}
           >
             <CalendarDaysIcon className="h-4 w-4" />
-            Congés
+            Autorisations
             {stats?.pendingLeave > 0 && (
               <span className="ml-1 px-1.5 py-0.5 bg-yellow-500 text-white text-xs rounded-full">
                 {stats.pendingLeave}
@@ -259,7 +253,7 @@ export default function RhDashboardPage() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div>
-              <h2 className="text-base font-semibold text-gray-900">Calendrier des conges</h2>
+              <h2 className="text-base font-semibold text-gray-900">Calendrier des autorisations</h2>
               <p className="text-sm text-gray-500">Maximum 2 employes absents sur la meme periode</p>
             </div>
             <div className="flex items-center gap-2">
@@ -335,7 +329,7 @@ export default function RhDashboardPage() {
           leaveRequests.length === 0 ? (
             <div className="text-center py-20 text-gray-400">
               <CalendarDaysIcon className="h-12 w-12 mx-auto mb-3 opacity-40" />
-              <p className="font-medium">Aucune demande de congé</p>
+              <p className="font-medium">Aucune demande d'autorisation</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-50">

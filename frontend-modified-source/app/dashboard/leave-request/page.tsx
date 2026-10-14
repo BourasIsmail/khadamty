@@ -6,15 +6,7 @@ import { api } from '@/lib/api'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
 import { ArrowLeftIcon, CalendarDaysIcon } from '@heroicons/react/24/outline'
-
-const LEAVE_TYPES = [
-  { value: 'ANNUAL_LEAVE', label: 'Congé annuel' },
-  { value: 'SICK_LEAVE', label: 'Congé maladie' },
-  { value: 'PERSONAL_LEAVE', label: 'Congé personnel' },
-  { value: 'MATERNITY_LEAVE', label: 'Congé maternité' },
-  { value: 'PATERNITY_LEAVE', label: 'Congé paternité' },
-  { value: 'EMERGENCY_LEAVE', label: "Congé d'urgence" },
-]
+import { AUTHORIZATION_GROUPS, findAuthorizationType } from '@/lib/authorizations'
 
 export default function LeaveRequestPage() {
   const router = useRouter()
@@ -27,6 +19,8 @@ export default function LeaveRequestPage() {
     endDate: '',
     reason: '',
   })
+
+  const selectedType = findAuthorizationType(form.leaveType)
 
   const daysRequested = (() => {
     if (!form.startDate || !form.endDate) return 0
@@ -52,7 +46,7 @@ export default function LeaveRequestPage() {
       } catch (e: any) {
         if (!cancelled) {
           setAvailability(null)
-          toast.error(e.message || 'Planning conges indisponible')
+          toast.error(e.message || 'Planning des autorisations indisponible')
         }
       } finally {
         if (!cancelled) setCheckingAvailability(false)
@@ -77,7 +71,7 @@ export default function LeaveRequestPage() {
     }
 
     if (availability && availability.available === false) {
-      toast.error('Deux employes sont deja en conge sur cette periode')
+      toast.error('Deux employés sont déjà absents sur cette période')
       return
     }
 
@@ -90,7 +84,7 @@ export default function LeaveRequestPage() {
         daysRequested,
         reason: form.reason.trim() || undefined,
       })
-      toast.success('Demande de congé envoyée avec succès !')
+      toast.success("Demande d'autorisation envoyée avec succès !")
       router.push('/dashboard/leave-balance')
     } catch (e: any) {
       toast.error(e.message || 'Erreur lors de la demande')
@@ -110,34 +104,42 @@ export default function LeaveRequestPage() {
           <ArrowLeftIcon className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Demande de congé</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Demande d'autorisation</h1>
           <p className="text-gray-500 mt-1">Remplissez le formulaire ci-dessous</p>
         </div>
       </div>
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
-        {/* Type de congé */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Type de congé <span className="text-red-500">*</span>
+        {/* Type d'autorisation */}
+        <div className="space-y-4">
+          <label className="block text-sm font-semibold text-gray-700">
+            Type d'autorisation <span className="text-red-500">*</span>
           </label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {LEAVE_TYPES.map((type) => (
-              <button
-                key={type.value}
-                type="button"
-                onClick={() => setForm({ ...form, leaveType: type.value })}
-                className={`px-3 py-2.5 rounded-xl text-sm font-medium border transition text-left ${
-                  form.leaveType === type.value
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/25'
-                    : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
-                }`}
-              >
-                {type.label}
-              </button>
-            ))}
-          </div>
+          {AUTHORIZATION_GROUPS.map((group) => (
+            <div key={group.title}>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">{group.title}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {group.types.map((type) => (
+                  <button
+                    key={type.value}
+                    type="button"
+                    onClick={() => setForm({ ...form, leaveType: type.value })}
+                    className={`px-3 py-2.5 rounded-xl text-sm font-medium border transition text-left ${
+                      form.leaveType === type.value
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/25'
+                        : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                    }`}
+                  >
+                    {type.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          {selectedType?.note && (
+            <p className="text-xs text-blue-700 bg-blue-50 rounded-xl px-3 py-2">{selectedType.note}</p>
+          )}
         </div>
 
         {/* Dates */}
@@ -181,7 +183,7 @@ export default function LeaveRequestPage() {
                 <p className={`text-xs mt-0.5 ${availability.available ? 'text-emerald-700' : 'text-red-700'}`}>
                   {availability.available
                     ? `${availability.remainingSlots} place${availability.remainingSlots > 1 ? 's' : ''} disponible${availability.remainingSlots > 1 ? 's' : ''} sur cette periode`
-                    : 'Periode bloquee: deux employes sont deja en conge'}
+                    : 'Période bloquée : deux employés sont déjà absents'}
                 </p>
               )}
             </div>

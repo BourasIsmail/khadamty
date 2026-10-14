@@ -2,6 +2,7 @@
 import '../../core/constants.dart';
 import '../../services/api_service.dart';
 import '../../widgets/khadamati_logo.dart';
+import '../../models/authorization_types.dart';
 
 class LeaveBalanceScreen extends StatefulWidget {
   const LeaveBalanceScreen({super.key});
@@ -50,15 +51,7 @@ class _LeaveBalanceScreenState extends State<LeaveBalanceScreen> {
     );
   }
 
-  String _leaveTypeLabel(String value) => switch (value) {
-        'ANNUAL_LEAVE' => 'Conge annuel',
-        'SICK_LEAVE' => 'Conge maladie',
-        'PERSONAL_LEAVE' => 'Conge personnel',
-        'MATERNITY_LEAVE' => 'Conge maternite',
-        'PATERNITY_LEAVE' => 'Conge paternite',
-        'EMERGENCY_LEAVE' => 'Conge urgence',
-        _ => value,
-      };
+  String _leaveTypeLabel(String value) => authorizationLabel(value);
 
   @override
   Widget build(BuildContext context) {
@@ -76,20 +69,14 @@ class _LeaveBalanceScreenState extends State<LeaveBalanceScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Conges',
+                      'Autorisations',
                       style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.gray900),
                     ),
                     const SizedBox(height: 4),
                     const Text('Solde, demandes et suivi de validation', style: TextStyle(color: AppColors.gray500)),
                     const SizedBox(height: 16),
                     if (_balance != null) ...[
-                      Row(children: [
-                        Expanded(child: _balanceCard('Annuels', _balance!['annualLeave'] ?? 0, 25, AppColors.primary, Icons.wb_sunny_outlined)),
-                        const SizedBox(width: 10),
-                        Expanded(child: _balanceCard('Maladie', _balance!['sickLeave'] ?? 0, 10, AppColors.danger, Icons.favorite_outline)),
-                        const SizedBox(width: 10),
-                        Expanded(child: _balanceCard('Perso', _balance!['personalLeave'] ?? 0, 5, AppColors.primaryLight, Icons.person_outline)),
-                      ]),
+                      _balanceCard('Autorisation annuelle', _balance!['annualLeave'] ?? 0, 22, AppColors.primary, Icons.wb_sunny_outlined),
                       const SizedBox(height: 16),
                     ],
                     SizedBox(
@@ -100,14 +87,14 @@ class _LeaveBalanceScreenState extends State<LeaveBalanceScreen> {
                           MaterialPageRoute(builder: (_) => const LeaveRequestFormScreen()),
                         ).then((_) => _load()),
                         icon: const Icon(Icons.add),
-                        label: const Text('Nouvelle demande de conge'),
+                        label: const Text("Nouvelle demande d'autorisation"),
                       ),
                     ),
                     const SizedBox(height: 20),
                     const Text('Mes demandes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.gray900)),
                     const SizedBox(height: 12),
                     if (_requests.isEmpty)
-                      _empty('Aucune demande de conge', Icons.event_busy_outlined)
+                      _empty("Aucune demande d'autorisation", Icons.event_busy_outlined)
                     else
                       ..._requests.map((raw) {
                         final item = Map<String, dynamic>.from(raw as Map);
@@ -195,14 +182,6 @@ class _LeaveRequestFormScreenState extends State<LeaveRequestFormScreen> {
   bool _submitting = false;
   final _reasonCtrl = TextEditingController();
 
-  final _types = const [
-    ('ANNUAL_LEAVE', 'Conge annuel'),
-    ('SICK_LEAVE', 'Conge maladie'),
-    ('PERSONAL_LEAVE', 'Conge personnel'),
-    ('MATERNITY_LEAVE', 'Conge maternite'),
-    ('PATERNITY_LEAVE', 'Conge paternite'),
-    ('EMERGENCY_LEAVE', 'Conge urgence'),
-  ];
 
   int get _days {
     if (_startDate == null || _endDate == null) return 0;
@@ -241,7 +220,7 @@ class _LeaveRequestFormScreenState extends State<LeaveRequestFormScreen> {
     try {
       final availability = await ApiService.checkLeaveAvailability(_dateValue(_startDate!), _dateValue(_endDate!));
       if (availability['available'] == false) {
-        throw Exception('Planning conges complet: choisissez une autre periode.');
+        throw Exception('Planning des autorisations complet : choisissez une autre période.');
       }
       await ApiService.requestLeave({
         'leaveType': _leaveType,
@@ -273,26 +252,38 @@ class _LeaveRequestFormScreenState extends State<LeaveRequestFormScreen> {
     final slots = _availability?['remainingSlots'] ?? 2;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Demande de conge')),
+      appBar: AppBar(title: const Text("Demande d'autorisation")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Type de conge', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+          const Text("Type d'autorisation", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
           const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _types.map((type) {
-              final active = _leaveType == type.$1;
-              return ChoiceChip(
-                label: Text(type.$2),
-                selected: active,
-                onSelected: (_) => setState(() => _leaveType = type.$1),
-                selectedColor: AppColors.primaryBg,
-                labelStyle: TextStyle(color: active ? AppColors.primary : AppColors.gray500, fontWeight: FontWeight.w700),
-              );
-            }).toList(),
-          ),
+          for (final group in authorizationGroups) ...[
+            Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 8),
+              child: Text(group.title.toUpperCase(),
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.gray400)),
+            ),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: group.types.map((type) {
+                final active = _leaveType == type.value;
+                return ChoiceChip(
+                  label: Text(type.label),
+                  selected: active,
+                  onSelected: (_) => setState(() => _leaveType = type.value),
+                  selectedColor: AppColors.primaryBg,
+                  labelStyle: TextStyle(color: active ? AppColors.primary : AppColors.gray500, fontWeight: FontWeight.w700),
+                );
+              }).toList(),
+            ),
+          ],
+          if (findAuthorizationType(_leaveType)?.note != null) ...[
+            const SizedBox(height: 10),
+            Text(findAuthorizationType(_leaveType)!.note!,
+                style: const TextStyle(fontSize: 12, color: AppColors.primary)),
+          ],
           const SizedBox(height: 22),
           Row(children: [
             Expanded(child: _datePicker('Date de debut', _startDate, (date) { setState(() => _startDate = date); _refreshAvailability(); })),

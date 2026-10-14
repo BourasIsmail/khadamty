@@ -15,7 +15,7 @@ const DOC_TYPES = [
   { value: 'WORK_CERTIFICATE', label: 'Attestation de travail' },
   { value: 'SALARY_CERTIFICATE', label: 'Attestation de salaire' },
   { value: 'EMPLOYMENT_CONTRACT', label: 'Contrat de travail' },
-  { value: 'LEAVE_BALANCE', label: 'Solde de congés' },
+  { value: 'LEAVE_BALANCE', label: "Solde d'autorisations" },
   { value: 'TAX_CERTIFICATE', label: 'Certificat fiscal' },
   { value: 'EXPERIENCE_CERTIFICATE', label: "Certificat d'expérience" },
 ]

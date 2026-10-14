@@ -27,7 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (role == 'EMPLOYEE') {
       return [
         _NavItem(icon: Icons.home_outlined,             activeIcon: Icons.home,            label: 'Accueil',  screen: const DashboardTab()),
-        _NavItem(icon: Icons.event_available_outlined,  activeIcon: Icons.event_available, label: 'Conges',   screen: const LeaveBalanceScreen()),
+        _NavItem(icon: Icons.event_available_outlined,  activeIcon: Icons.event_available, label: 'Autorisations',   screen: const LeaveBalanceScreen()),
         _NavItem(icon: Icons.description_outlined,      activeIcon: Icons.description,     label: 'Docs',     screen: const DocumentRequestScreen()),
         _NavItem(icon: Icons.payments_outlined,         activeIcon: Icons.payments,        label: 'Paie',     screen: const PaySlipsScreen()),
         _NavItem(icon: Icons.route_outlined,            activeIcon: Icons.route,           label: 'Missions', screen: const MissionOrdersScreen()),

@@ -115,11 +115,9 @@ export default function EmployeeDetailPage() {
       </section>
 
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        <h2 className="text-base font-semibold text-gray-900 mb-4">Congés</h2>
+        <h2 className="text-base font-semibold text-gray-900 mb-4">Autorisations</h2>
         <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <Field label="Annuel" value={employee.annualLeaveBalance != null ? `${employee.annualLeaveBalance} j` : ''} />
-          <Field label="Maladie" value={employee.sickLeaveBalance != null ? `${employee.sickLeaveBalance} j` : ''} />
-          <Field label="Personnel" value={employee.personalLeaveBalance != null ? `${employee.personalLeaveBalance} j` : ''} />
+          <Field label="Annuelle" value={employee.annualLeaveBalance != null ? `${employee.annualLeaveBalance} j` : ''} />
         </dl>
       </section>
 

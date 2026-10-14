@@ -5,19 +5,13 @@ import { api } from '@/lib/api'
 import { useAuthStore } from '@/lib/store'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
+import { AUTHORIZATION_LABELS } from '@/lib/authorizations'
 import {
-  CalendarDaysIcon, SunIcon, HeartIcon, UserIcon,
+  CalendarDaysIcon, SunIcon,
   PlusIcon, ClockIcon, CheckCircleIcon, XCircleIcon,
 } from '@heroicons/react/24/outline'
 
-const LEAVE_TYPE_LABELS: Record<string, string> = {
-  ANNUAL_LEAVE: 'Congé annuel',
-  SICK_LEAVE: 'Congé maladie',
-  PERSONAL_LEAVE: 'Congé personnel',
-  MATERNITY_LEAVE: 'Congé maternité',
-  PATERNITY_LEAVE: 'Congé paternité',
-  EMERGENCY_LEAVE: "Congé d'urgence",
-}
+const LEAVE_TYPE_LABELS = AUTHORIZATION_LABELS
 
 const STATUS_STYLES: Record<string, string> = {
   PENDING: 'bg-yellow-100 text-yellow-700',
@@ -58,12 +52,7 @@ export default function LeaveBalancePage() {
   }, [])
 
   const balanceCards = balance
-    ? [
-        { label: 'Congés annuels', value: balance.annualLeave, icon: SunIcon, color: 'blue', max: 30 },
-        { label: 'Congés maladie', value: balance.sickLeave, icon: HeartIcon, color: 'red', max: 15 },
-        { label: 'Congés personnels', value: balance.personalLeave, icon: UserIcon, color: 'purple', max: 5 },
-        { label: 'Total disponible', value: balance.totalLeave, icon: CalendarDaysIcon, color: 'emerald', max: 50 },
-      ]
+    ? [{ label: 'Autorisation annuelle', value: balance.annualLeave, icon: SunIcon, color: 'blue', max: 22 }]
     : []
 
   const colorMap: Record<string, { bg: string; text: string; bar: string; shadow: string }> = {
@@ -78,7 +67,7 @@ export default function LeaveBalancePage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mes congés</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Mes autorisations</h1>
           <p className="text-gray-500 mt-1">Consultez votre solde et vos demandes</p>
         </div>
         <Link
@@ -127,7 +116,7 @@ export default function LeaveBalancePage() {
       {/* Historique des demandes */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-base font-semibold text-gray-900">Mes demandes de congés</h2>
+          <h2 className="text-base font-semibold text-gray-900">Mes demandes d'autorisations</h2>
         </div>
 
         {loading ? (
@@ -137,7 +126,7 @@ export default function LeaveBalancePage() {
         ) : requests.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <CalendarDaysIcon className="h-12 w-12 mx-auto mb-3 opacity-40" />
-            <p className="font-medium">Aucune demande de congé</p>
+            <p className="font-medium">Aucune demande d'autorisation</p>
             <p className="text-sm mt-1">Cliquez sur "Nouvelle demande" pour commencer</p>
           </div>
         ) : (
