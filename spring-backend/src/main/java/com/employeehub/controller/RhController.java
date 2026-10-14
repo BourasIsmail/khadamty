@@ -70,7 +70,7 @@ public class RhController {
         }
     }
 
-    // ── Demandes de congés ───────────────────────────────────────────────────
+    // ── Demandes d'autorisations ───────────────────────────────────────────────────
 
     @GetMapping("/leave-requests")
     public ResponseEntity<?> getAllLeaveRequests(
@@ -174,7 +174,7 @@ public class RhController {
             req.setApprovedBy(approverEmail);
             req.setUpdatedAt(LocalDateTime.now());
 
-            // Déduire du solde de congés de l'employé
+            // Déduire du solde d'autorisations de l'employé
             Optional<Employee> empOpt = employeeRepository.findByEmployeeId(req.getEmployeeId());
             if (empOpt.isPresent()) {
                 Employee emp = empOpt.get();
@@ -198,7 +198,7 @@ public class RhController {
             LeaveRequest saved = leaveRequestRepository.save(req);
 
             Map<String, Object> response = new HashMap<>();
-            response.put("message", "Demande de congé approuvée");
+            response.put("message", "Demande d'autorisation approuvée");
             response.put("leaveRequest", saved);
             return ResponseEntity.ok(response);
 
@@ -230,7 +230,7 @@ public class RhController {
             LeaveRequest saved = leaveRequestRepository.save(req);
 
             Map<String, Object> response = new HashMap<>();
-            response.put("message", "Demande de congé rejetée");
+            response.put("message", "Demande d'autorisation rejetée");
             response.put("leaveRequest", saved);
             return ResponseEntity.ok(response);
 

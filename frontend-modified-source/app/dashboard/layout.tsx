@@ -32,7 +32,7 @@ const navItems = [
   { name: 'Demandes',         href: '/dashboard/demandes',          icon: CalendarDaysIcon,  activeIcon: CalendarSolid,   roles: ['ADMIN','RH'] },
   { name: 'Documents',        href: '/dashboard/documents',         icon: DocumentTextIcon,  activeIcon: DocumentSolid,   roles: ['ADMIN','RH','EMPLOYEE'] },
   { name: 'Annonces',         href: '/dashboard/annonces',          icon: BellIcon,          activeIcon: BellIcon,        roles: ['ADMIN','RH','EMPLOYEE'] },
-  { name: 'Mes congés',       href: '/dashboard/leave-balance',     icon: CalendarDaysIcon,  activeIcon: CalendarSolid,   roles: ['EMPLOYEE'] },
+  { name: 'Mes autorisations',       href: '/dashboard/leave-balance',     icon: CalendarDaysIcon,  activeIcon: CalendarSolid,   roles: ['EMPLOYEE'] },
   { name: 'Mes attestations', href: '/dashboard/document-request',  icon: DocumentTextIcon,  activeIcon: DocumentSolid,   roles: ['EMPLOYEE'] },
   { name: 'Gestion RH',       href: '/dashboard/rh',                icon: BriefcaseIcon,     activeIcon: BriefcaseSolid,  roles: ['ADMIN','RH'] },
   { name: 'Statistiques',     href: '/dashboard/analytics',         icon: ChartBarIcon,      activeIcon: ChartSolid,      roles: ['ADMIN','RH'] },
@@ -48,7 +48,7 @@ const ROLE_BADGE: Record<string, { label: string; cls: string }> = {
 
 // Notifications fictives (à remplacer par de vraies données)
 const mockNotifications = [
-  { id: 1, type: 'success', title: 'Demande approuvée', message: 'Votre demande de congé a été approuvée', time: '5 min', read: false },
+  { id: 1, type: 'success', title: 'Demande approuvée', message: "Votre demande d'autorisation a été approuvée", time: '5 min', read: false },
   { id: 2, type: 'info', title: 'Nouveau message', message: 'Vous avez reçu un message de RH', time: '1 h', read: false },
   { id: 3, type: 'warning', title: 'Rappel', message: 'N\'oubliez pas de pointer aujourd\'hui', time: '2 h', read: true },
 ]

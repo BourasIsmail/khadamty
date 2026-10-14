@@ -148,7 +148,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   icon: Icons.person_outline,
                   color: AppColors.primaryLight,
                   title: 'Employé',
-                  subtitle: 'Congés, attestations, profil',
+                  subtitle: 'Autorisations, attestations, profil',
                   onTap: () => _goTo(LoginMode.empLogin),
                 ),
               ],

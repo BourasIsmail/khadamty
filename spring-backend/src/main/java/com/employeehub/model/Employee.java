@@ -41,7 +41,7 @@ public class Employee {
     @JsonIgnore
     private Double salary;
     
-    // Champs pour la gestion des congés
+    // Champs pour la gestion des autorisations
     @Column(name = "annual_leave_balance")
     private Integer annualLeaveBalance;
     
@@ -77,7 +77,7 @@ public class Employee {
         this.isActive = true;
         this.status = "active";
         // Soldes par défaut (en jours)
-        this.annualLeaveBalance = 25;
+        this.annualLeaveBalance = 22;
         this.sickLeaveBalance = 10;
         this.personalLeaveBalance = 5;
     }

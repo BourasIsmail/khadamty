@@ -102,22 +102,58 @@ public class LeaveRequest {
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
     
     // Enums
+    /**
+     * Types d'autorisations. Les anciennes valeurs (SICK_LEAVE, PERSONAL_LEAVE,
+     * MATERNITY_LEAVE, PATERNITY_LEAVE, EMERGENCY_LEAVE) sont conservées pour les
+     * demandes déjà enregistrées ; les nouvelles demandes utilisent {@link #selectable()}.
+     */
     public enum LeaveType {
-        ANNUAL_LEAVE("Congé annuel"),
-        SICK_LEAVE("Congé maladie"),
-        PERSONAL_LEAVE("Congé personnel"),
-        MATERNITY_LEAVE("Congé maternité"),
-        PATERNITY_LEAVE("Congé paternité"),
-        EMERGENCY_LEAVE("Congé d'urgence");
-        
+        // 1. Autorisations administratives
+        ANNUAL_LEAVE("Autorisation annuelle", Category.ADMINISTRATIVE, 22, true),
+        EXCEPTIONAL_LEAVE("Autorisation exceptionnelle / absence", Category.ADMINISTRATIVE, 10, true),
+        HAJJ_LEAVE("Autorisation de pèlerinage (Hajj)", Category.ADMINISTRATIVE, 60, true),
+        // 2. Autorisations pour raisons de santé
+        SICK_SHORT_TERM("Maladie de courte durée", Category.HEALTH, 180, true),
+        SICK_MEDIUM_TERM("Maladie de moyenne durée", Category.HEALTH, 1095, true),
+        SICK_LONG_TERM("Maladie de longue durée", Category.HEALTH, 1825, true),
+        WORK_ACCIDENT("Maladie ou accident du travail", Category.HEALTH, null, true),
+        // 3. Maternité, paternité, kafala, allaitement
+        MATERNITY("Autorisation de maternité", Category.FAMILY, 98, true),
+        PATERNITY("Autorisation de paternité", Category.FAMILY, 15, true),
+        ADOPTION("Autorisation de kafala", Category.FAMILY, 98, true),
+        NURSING("Heure d'allaitement", Category.FAMILY, null, true),
+        // 4. Sans traitement
+        UNPAID_LEAVE("Autorisation sans traitement", Category.UNPAID, 30, true),
+
+        // Anciennes valeurs (non proposées pour de nouvelles demandes)
+        SICK_LEAVE("Autorisation maladie", Category.HEALTH, null, false),
+        PERSONAL_LEAVE("Autorisation personnelle", Category.ADMINISTRATIVE, null, false),
+        MATERNITY_LEAVE("Autorisation de maternité", Category.FAMILY, null, false),
+        PATERNITY_LEAVE("Autorisation de paternité", Category.FAMILY, null, false),
+        EMERGENCY_LEAVE("Autorisation d'urgence", Category.ADMINISTRATIVE, null, false);
+
+        public enum Category { ADMINISTRATIVE, HEALTH, FAMILY, UNPAID }
+
         private final String displayName;
-        
-        LeaveType(String displayName) {
+        private final Category category;
+        private final Integer maxDays;
+        private final boolean selectable;
+
+        LeaveType(String displayName, Category category, Integer maxDays, boolean selectable) {
             this.displayName = displayName;
+            this.category = category;
+            this.maxDays = maxDays;
+            this.selectable = selectable;
         }
-        
-        public String getDisplayName() {
-            return displayName;
+
+        public String getDisplayName() { return displayName; }
+        public Category getCategory() { return category; }
+        /** Durée maximale en jours (null = pas de plafond fixé). */
+        public Integer getMaxDays() { return maxDays; }
+        public boolean isSelectable() { return selectable; }
+
+        public static java.util.List<LeaveType> selectable() {
+            return java.util.Arrays.stream(values()).filter(LeaveType::isSelectable).toList();
         }
     }
     

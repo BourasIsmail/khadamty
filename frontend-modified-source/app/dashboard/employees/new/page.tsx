@@ -250,7 +250,7 @@ export default function NewEmployeePage() {
               </select>
               <p className="text-xs text-gray-400 mt-1.5">
                 {form.user_role === 'employee' 
-                  ? '👤 Employé : peut consulter son profil, demander des congés et attestations'
+                  ? '👤 Employé : peut consulter son profil, demander des autorisations et attestations'
                   : '👔 RH : peut gérer les employés, valider les demandes et consulter les statistiques'}
               </p>
             </div>

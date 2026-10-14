@@ -89,7 +89,7 @@ public class EmployeeController {
         }
     }
 
-    // Voir le solde de congés
+    // Voir le solde d'autorisations
     @GetMapping("/leave-balance")
     public ResponseEntity<?> getLeaveBalance(@RequestHeader("Authorization") String token) {
         try {
@@ -116,7 +116,7 @@ public class EmployeeController {
         }
     }
 
-    // Demander un congé
+    // Demander une autorisation
     @PostMapping("/leave-request")
     public ResponseEntity<?> requestLeave(@Valid @RequestBody LeaveRequestDto requestDto,
                                          @RequestHeader("Authorization") String token) {
@@ -130,6 +130,16 @@ public class EmployeeController {
             
             Employee employee = employeeOpt.get();
 
+            String ruleError = com.employeehub.service.AuthorizationRules.check(
+                    requestDto.getLeaveType(),
+                    requestDto.getDaysRequested() == null ? 0 : requestDto.getDaysRequested(),
+                    requestDto.getStartDate(),
+                    requestDto.getEndDate(),
+                    leaveRequestRepository.findByEmployeeId(employee.getEmployeeId()));
+            if (ruleError != null) {
+                return ResponseEntity.badRequest().body(Map.of("message", ruleError));
+            }
+
             Map<String, Object> availability = buildLeaveAvailability(
                     requestDto.getStartDate(),
                     requestDto.getEndDate(),
@@ -137,7 +147,7 @@ public class EmployeeController {
             );
             if (Boolean.FALSE.equals(availability.get("available"))) {
                 return ResponseEntity.badRequest().body(Map.of(
-                        "message", "Planning congés complet: deux employés sont déjà en congé sur cette période. Choisissez une autre date.",
+                        "message", "Planning des autorisations complet: deux employés sont déjà absents sur cette période. Choisissez une autre date.",
                         "availability", availability
                 ));
             }
@@ -159,7 +169,7 @@ public class EmployeeController {
         }
     }
 
-    // Voir ses demandes de congés
+    // Voir ses demandes d'autorisations
     @GetMapping("/leave-requests")
     public ResponseEntity<?> getMyLeaveRequests(@RequestHeader("Authorization") String token) {
         try {

@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import '../../models/authorization_types.dart';
 import '../../core/constants.dart';
 import '../../services/api_service.dart';
 import '../../widgets/khadamati_logo.dart';
@@ -97,7 +98,7 @@ class _RhTabState extends State<RhTab> with SingleTickerProviderStateMixin {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                _miniStat('Congés en attente', '${_stats!['pendingLeave'] ?? 0}', AppColors.danger),
+                _miniStat('Autorisations en attente', '${_stats!['pendingLeave'] ?? 0}', AppColors.danger),
                 const SizedBox(width: 10),
                 _miniStat('Docs en attente', '${_stats!['pendingDocs'] ?? 0}', AppColors.primary),
                 const SizedBox(width: 10),
@@ -115,7 +116,7 @@ class _RhTabState extends State<RhTab> with SingleTickerProviderStateMixin {
             unselectedLabelColor: AppColors.gray400,
             indicatorColor: AppColors.primary,
             tabs: [
-              Tab(text: 'Congés (${_leaveRequests.where((r) => r['status'] == 'PENDING').length})'),
+              Tab(text: 'Autorisations (${_leaveRequests.where((r) => r['status'] == 'PENDING').length})'),
               Tab(text: 'Attestations (${_docRequests.where((r) => r['status'] == 'PENDING').length})'),
               Tab(text: 'Calendrier (${_calendarEvents.length})'),
             ],
@@ -265,7 +266,7 @@ class _RhTabState extends State<RhTab> with SingleTickerProviderStateMixin {
 
   Widget _buildCalendarList() {
     if (_calendarEvents.isEmpty) {
-      return const Center(child: Text('Aucun conge planifie', style: TextStyle(color: AppColors.gray400)));
+      return const Center(child: Text('Aucune autorisation planifiée', style: TextStyle(color: AppColors.gray400)));
     }
     return RefreshIndicator(
       color: AppColors.primary,
@@ -303,21 +304,13 @@ class _RhTabState extends State<RhTab> with SingleTickerProviderStateMixin {
       ),
     );
   }
-  String _leaveTypeLabel(String t) => switch (t) {
-    'ANNUAL_LEAVE'    => 'Congé annuel',
-    'SICK_LEAVE'      => 'Congé maladie',
-    'PERSONAL_LEAVE'  => 'Congé personnel',
-    'MATERNITY_LEAVE' => 'Congé maternité',
-    'PATERNITY_LEAVE' => 'Congé paternité',
-    'EMERGENCY_LEAVE' => "Congé d'urgence",
-    _ => t,
-  };
+  String _leaveTypeLabel(String t) => authorizationLabel(t);
 
   String _docTypeLabel(String t) => switch (t) {
     'WORK_CERTIFICATE'      => 'Attestation de travail',
     'SALARY_CERTIFICATE'    => 'Attestation de salaire',
     'EMPLOYMENT_CONTRACT'   => 'Contrat de travail',
-    'LEAVE_BALANCE'         => 'Solde de congés',
+    'LEAVE_BALANCE'         => "Solde d'autorisations",
     'TAX_CERTIFICATE'       => 'Certificat fiscal',
     'EXPERIENCE_CERTIFICATE'=> "Certificat d'expérience",
     _ => t,

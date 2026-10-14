@@ -21,7 +21,7 @@ class _DocumentRequestScreenState extends State<DocumentRequestScreen> {
     ('WORK_CERTIFICATE',       'Attestation de travail'),
     ('SALARY_CERTIFICATE',     'Attestation de salaire'),
     ('EMPLOYMENT_CONTRACT',    'Contrat de travail'),
-    ('LEAVE_BALANCE',          'Solde de congés'),
+    ('LEAVE_BALANCE',          "Solde d'autorisations"),
     ('TAX_CERTIFICATE',        'Certificat fiscal'),
     ('EXPERIENCE_CERTIFICATE', "Certificat d'expérience"),
   ];

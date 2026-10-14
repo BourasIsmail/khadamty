@@ -264,7 +264,7 @@ public class DataSeeder implements CommandLineRunner {
         employee.setAddress("123 Rue de la Paix, Paris");
         employee.setEmergencyContact("Contact d'urgence");
         employee.setEmergencyPhone("+33 6 " + (10000000 + new Random().nextInt(90000000)));
-        employee.setAnnualLeaveBalance(25);
+        employee.setAnnualLeaveBalance(22);
         employee.setSickLeaveBalance(10);
         employee.setPersonalLeaveBalance(5);
         return employee;
@@ -311,7 +311,7 @@ public class DataSeeder implements CommandLineRunner {
         List<Employee> employees = employeeRepository.findAll();
         Random random = new Random();
 
-        LeaveRequest.LeaveType[] types = LeaveRequest.LeaveType.values();
+        LeaveRequest.LeaveType[] types = LeaveRequest.LeaveType.selectable().toArray(new LeaveRequest.LeaveType[0]);
         LeaveRequest.LeaveStatus[] statuses = {
             LeaveRequest.LeaveStatus.PENDING,
             LeaveRequest.LeaveStatus.APPROVED,
@@ -331,12 +331,12 @@ public class DataSeeder implements CommandLineRunner {
                 request.setStartDate(start);
                 request.setEndDate(start.plusDays(days));
                 request.setDaysRequested(days);
-                request.setReason("Demande de congé pour raisons personnelles");
+                request.setReason("Demande d'autorisation pour raisons personnelles");
                 request.setStatus(statuses[random.nextInt(statuses.length)]);
                 leaveRequestRepository.save(request);
             }
         }
-        System.out.println("🏖️ Demandes de congés créées");
+        System.out.println("🏖️ Demandes d'autorisations créées");
     }
 
     private void seedDocumentRequests() {
